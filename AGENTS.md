@@ -12,7 +12,6 @@ This repository contains a Python-based Nanoblock tracker that scrapes product l
   - `scraper.py`: Scraping, parsing, normalization, merge logic, CSV export, and summary generation.
   - `sheets.py`: Google Sheets read/write helpers.
   - `constants.py`: Shared constants and regex patterns.
-- `scripts/`: Helper scripts for automation workflows.
 - `tests/`: Unit tests for the scraper and supporting modules.
 - `tasks.py`: Lightweight task runner for common developer commands.
 
