@@ -39,14 +39,12 @@ def build_credentials(credentials_value: str | None) -> Any:
         )
     except FileNotFoundError as exc:
         raise RuntimeError(
-            f"Google Sheets sync failed: credentials file not found at {credentials_value}"
+            f"credentials file not found: {credentials_value}"
         ) from exc
     except json.JSONDecodeError as exc:
-        raise RuntimeError(
-            "Google Sheets sync failed: credentials JSON is invalid"
-        ) from exc
+        raise RuntimeError("credentials JSON is invalid") from exc
     except Exception as exc:  # pragma: no cover - defensive for runtime failures
-        raise RuntimeError(f"Google Sheets sync failed: {exc}") from exc
+        raise RuntimeError(str(exc)) from exc
 
 
 def normalize_sheet_row(row: Dict[str, Any]) -> Dict[str, Any]:

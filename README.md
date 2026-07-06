@@ -82,8 +82,8 @@ In GitHub, add these repository secrets or variables:
   - The Google Sheets spreadsheet ID.
 - Variable (optional): `GOOGLE_SHEET_NAME`
   - The worksheet/tab name to update. If omitted, the script falls back to `Sheet1`.
-- Secret or variable (optional): `NOTIFICATION_EMAIL`
-  - The email address that should receive a short summary when new rows are appended by the workflow.
+
+The workflow publishes the scraper output to the GitHub Actions job summary (`$GITHUB_STEP_SUMMARY`) so each run includes a built-in sync status message in the Actions UI.
 
 ### How to include the Google credentials in GitHub
 
