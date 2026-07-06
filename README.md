@@ -2,16 +2,25 @@
 
 This project scrapes the Bulbapedia Nanoblock products page and exports a spreadsheet-friendly CSV of valid Nanoblock products.
 
+## Requirements
+
+- Python 3.11+
+
 ## Setup
 
+Create and activate a project-local virtual environment:
+
 ```bash
-python3 -m pip install -r requirements.txt pytest
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt pytest black ruff
 ```
 
 ## Run
 
 ```bash
-python3 nanoblock_scraper.py
+python nanoblock_scraper.py
 ```
 
 This writes a file named `nanoblock_products.csv` in the project root.
@@ -33,13 +42,13 @@ GOOGLE_SHEET_NAME=Sheet1
 Then run:
 
 ```bash
-python3 nanoblock_scraper.py
+python nanoblock_scraper.py
 ```
 
 Or override them explicitly:
 
 ```bash
-python3 nanoblock_scraper.py \
+python nanoblock_scraper.py \
   --sheet-id YOUR_SPREADSHEET_ID \
   --credentials /path/to/service-account.json
 ```
@@ -83,17 +92,17 @@ In GitHub, add these repository secrets or variables:
 Format Python files with Black:
 
 ```bash
-python3 -m black .
+python -m black .
 ```
 
 Lint with Ruff:
 
 ```bash
-python3 -m ruff check .
+python -m ruff check .
 ```
 
 Run tests:
 
 ```bash
-python3 -m pytest -q
+python -m pytest -q
 ```
