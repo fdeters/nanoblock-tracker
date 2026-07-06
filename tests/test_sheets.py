@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 import nanoblock_tracker.sheets as sheets_module
 from nanoblock_tracker.sheets import normalize_sheet_row
 
@@ -50,3 +52,35 @@ def test_build_credentials_from_json_string(monkeypatch) -> None:
         "info": payload,
         "scopes": ["https://www.googleapis.com/auth/spreadsheets"],
     }
+
+
+def test_read_google_sheet_rows_surfaces_missing_worksheet_error(monkeypatch) -> None:
+    class DummyClient:
+        def open_by_key(self, _spreadsheet_id):
+            return type(
+                "Workbook",
+                (),
+                {
+                    "worksheet": lambda self, _sheet_name: (_ for _ in ()).throw(
+                        RuntimeError("Worksheet 'Sheet1' not found")
+                    )
+                },
+            )()
+
+    class DummyGspread:
+        @staticmethod
+        def authorize(_credentials):
+            return DummyClient()
+
+    class DummyCredentials:
+        @classmethod
+        def from_service_account_info(cls, info, scopes=None):
+            return {"info": info, "scopes": scopes}
+
+    monkeypatch.setattr(sheets_module, "gspread", DummyGspread)
+    monkeypatch.setattr(sheets_module, "Credentials", DummyCredentials)
+
+    with pytest.raises(RuntimeError, match="Google Sheets sync failed") as exc_info:
+        sheets_module.read_google_sheet_rows("sheet-id", "Sheet1", "{}")
+
+    assert "Worksheet 'Sheet1' not found" in str(exc_info.value)
