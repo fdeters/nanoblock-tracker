@@ -29,8 +29,13 @@ def main() -> None:
         resolve_config_value(args.sheet_name, "GOOGLE_SHEET_NAME", "Sheet1") or "Sheet1"
     )
 
-    html = fetch_page(args.url)
+    try:
+        html = fetch_page(args.url)
+    except Exception as exc:
+        raise SystemExit(f"Scrape failed: {exc}") from exc
+
     products = parse_products(html)
+    print(f"Scraped {len(products)} products from Bulbapedia.")
 
     if sheet_id:
         try:
@@ -47,16 +52,16 @@ def main() -> None:
                 credentials_path,
             )
         except (RuntimeError, FileNotFoundError) as exc:
-            raise SystemExit(f"Google Sheets sync failed: {exc}") from exc
+            raise SystemExit(str(exc)) from exc
 
         if appended:
-            print(f"Appended {appended} new products to Google Sheet {sheet_id}")
+            print(f"Synced to Google Sheet '{sheet_name}' (sheet: {sheet_id}).")
             print(build_summary(new_products))
         else:
-            print("No new products to append to Google Sheet")
+            print(f"No new products — '{sheet_name}' is already up to date.")
     else:
         export_products(products, args.output)
-        print(f"Wrote {len(products)} products to {args.output}")
+        print(f"Wrote {len(products)} products to {args.output}.")
 
 
 if __name__ == "__main__":

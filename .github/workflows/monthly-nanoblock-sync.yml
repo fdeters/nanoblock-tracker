@@ -23,6 +23,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run scraper
+        id: run_scraper
         env:
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
@@ -30,24 +31,30 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$GOOGLE_SHEET_ID" ]; then
-            echo "Google Sheets sync failed: GOOGLE_SHEET_ID is not configured" >&2
+            echo "Google Sheets sync failed: GOOGLE_SHEET_ID is not configured"
             exit 1
           fi
           if [ -z "$GOOGLE_CREDENTIALS_JSON" ]; then
-            echo "Google Sheets sync failed: GOOGLE_CREDENTIALS_JSON is not configured" >&2
+            echo "Google Sheets sync failed: GOOGLE_CREDENTIALS_JSON is not configured"
             exit 1
           fi
 
           GOOGLE_SHEET_NAME="${GOOGLE_SHEET_NAME:-Sheet1}"
-          python nanoblock_scraper.py --sheet-id "$GOOGLE_SHEET_ID" --credentials "$GOOGLE_CREDENTIALS_JSON" --sheet-name "$GOOGLE_SHEET_NAME" > sync-output.txt
+          python nanoblock_scraper.py --sheet-id "$GOOGLE_SHEET_ID" --credentials "$GOOGLE_CREDENTIALS_JSON" --sheet-name "$GOOGLE_SHEET_NAME" 2>&1 | tee sync-output.txt
 
       - name: Publish sync summary
         if: always()
         run: |
-          if [ -s sync-output.txt ]; then
-            {
+          {
+            if [ "${{ steps.run_scraper.outcome }}" = "failure" ]; then
+              echo "## Nanoblock sync summary — Run failed"
+            else
               echo "## Nanoblock sync summary"
-              echo
+            fi
+            echo
+            if [ -s sync-output.txt ]; then
               cat sync-output.txt
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+            else
+              echo "_No output was captured._"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
