@@ -15,6 +15,7 @@ VARIANT_RE = re.compile(
     r"\b(RS|DX|Extreme DX|Monotone|Translucent|Pokémon Quest|Galarian Form|Brilliant Shining|Lunar New Year Costume)\b",
     re.IGNORECASE,
 )
+PARENTHETICAL_RE = re.compile(r"\s*\([^)]*\)\s*$")
 
 
 def fetch_page(url: str = DEFAULT_URL) -> str:
@@ -45,15 +46,19 @@ def parse_products(html: str) -> List[dict]:
             variant_match = VARIANT_RE.search(details)
             if variant_match:
                 variant = variant_match.group(0)
-                name = VARIANT_RE.sub("", details).strip(" -")
+                name = VARIANT_RE.sub("", details)
             else:
-                name = details.strip()
+                name = details
+
+            name = PARENTHETICAL_RE.sub("", name).strip(" -")
 
             products.append(
                 {
-                    "product_name": name,
-                    "product_code": code,
-                    "variant": variant,
+                    "Product Name": name,
+                    "Product Code": code,
+                    "Variant": variant,
+                    "Collected": "",
+                    "Not interested": "",
                 }
             )
 
@@ -63,7 +68,7 @@ def parse_products(html: str) -> List[dict]:
 def export_products(products: List[dict], output_path: str | Path | None = None) -> Path:
     output = Path(output_path) if output_path else Path("nanoblock_products.csv")
     with output.open("w", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["product_name", "product_code", "variant"])
+        writer = csv.DictWriter(handle, fieldnames=["Product Name", "Product Code", "Variant", "Collected", "Not interested"])
         writer.writeheader()
         writer.writerows(products)
     return output
