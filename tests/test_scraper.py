@@ -1,13 +1,15 @@
+import csv
 import sys
 
 import pytest
 
-from nanoblock_scraper import (
-    build_parser,
-    main,
+from nanoblock_scraper import main
+from nanoblock_tracker.config import build_parser, resolve_config_value
+from nanoblock_tracker.scraper import (
+    build_summary,
+    export_products,
     merge_products,
     parse_products,
-    resolve_config_value,
 )
 
 SAMPLE_HTML = """
@@ -110,3 +112,46 @@ def test_merge_products_only_appends_new_codes() -> None:
     assert len(new_products) == 1
     assert new_products[0]["Product Code"] == "NBPM_002"
     assert new_products[0]["Product Name"] == "Pikachu"
+
+
+def test_build_summary_formats_products() -> None:
+    products = [
+        {
+            "Product Code": "NBPM_001",
+            "Product Name": "Pikachu",
+            "Variant": "RS",
+        },
+        {
+            "Product Code": "NBPM_002",
+            "Product Name": "Eevee",
+            "Variant": "",
+        },
+    ]
+
+    summary = build_summary(products)
+
+    assert "Added 2 new Nanoblock product(s):" in summary
+    assert "NBPM_001: Pikachu (RS)" in summary
+    assert "NBPM_002: Eevee" in summary
+
+
+def test_export_products_writes_expected_csv(tmp_path) -> None:
+    output_path = tmp_path / "products.csv"
+    products = [
+        {
+            "Product Name": "Pikachu",
+            "Product Code": "NBPM_001",
+            "Variant": "RS",
+            "Collected": "",
+            "Not interested": "",
+        }
+    ]
+
+    exported_path = export_products(products, output_path)
+
+    assert exported_path == output_path
+    with output_path.open(encoding="utf-8-sig", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+
+    assert rows[0]["Product Code"] == "NBPM_001"
+    assert rows[0]["Product Name"] == "Pikachu"
