@@ -27,7 +27,7 @@ This writes a file named `nanoblock_products.csv` in the project root.
 
 ## Sync to Google Sheets
 
-To update an existing Google Sheet without overwriting prior tracking data, provide the spreadsheet ID and a service-account JSON credentials file.
+To update an existing Google Sheet without overwriting prior tracking data, provide the spreadsheet ID and either a service-account JSON credentials file or the raw JSON contents of the credentials.
 
 You can use either a `.env` file or inline arguments. Inline arguments take precedence.
 
@@ -51,6 +51,14 @@ Or override them explicitly:
 python nanoblock_scraper.py \
   --sheet-id YOUR_SPREADSHEET_ID \
   --credentials /path/to/service-account.json
+```
+
+Or pass the credentials inline as a JSON string:
+
+```bash
+python nanoblock_scraper.py \
+  --sheet-id YOUR_SPREADSHEET_ID \
+  --credentials '{"type":"service_account",...}'
 ```
 
 The script will:
@@ -85,7 +93,7 @@ In GitHub, add these repository secrets or variables:
 4. Add another secret named `GOOGLE_SHEET_ID` with the spreadsheet ID.
 5. Optional: add a repository variable named `GOOGLE_SHEET_NAME` if your sheet is not named `Sheet1`.
 
-> Keep the credentials JSON in GitHub Secrets, not in the repository itself. The workflow writes it to a temporary file at runtime and uses it for the sync.
+> Keep the credentials JSON in GitHub Secrets, not in the repository itself. The workflow writes it to a temporary file at runtime and uses it for the sync. The same JSON payload can also be supplied directly when running locally with `--credentials`.
 
 ## Development
 

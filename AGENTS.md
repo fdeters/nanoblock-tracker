@@ -2,7 +2,7 @@
 
 ## Project overview
 
-This repository contains a Python-based Nanoblock tracker that scrapes product listings from Bulbapedia, normalizes the data, and can export it to CSV or sync new items to Google Sheets.
+This repository contains a Python-based Nanoblock tracker that scrapes product listings from Bulbapedia, normalizes the data, and can export it to CSV or sync new items to Google Sheets. Google Sheets authentication can be provided either as a credentials file path or as an inline JSON string.
 
 ## Repository structure
 

@@ -52,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--credentials",
-        help="Path to the Google service account credentials JSON file",
+        help="Path to the Google service account credentials JSON file or a raw JSON string",
     )
     parser.add_argument(
         "--env-file",

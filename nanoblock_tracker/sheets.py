@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from typing import Any, Dict, List, cast
 
@@ -11,6 +12,41 @@ except ImportError:  # pragma: no cover - used when optional dependency is not i
     Credentials = None
 
 from .constants import FIELDNAMES
+
+
+def build_credentials(credentials_value: str | None) -> Any:
+    if not credentials_value:
+        raise RuntimeError(
+            "Provide --credentials or set GOOGLE_APPLICATION_CREDENTIALS"
+        )
+
+    if Credentials is None:
+        raise RuntimeError(
+            "gspread and google-auth are required for Google Sheets sync"
+        )
+
+    try:
+        if credentials_value.strip().startswith("{"):
+            credentials_info = json.loads(credentials_value)
+            return Credentials.from_service_account_info(
+                credentials_info,
+                scopes=["https://www.googleapis.com/auth/spreadsheets"],
+            )
+
+        return Credentials.from_service_account_file(
+            credentials_value,
+            scopes=["https://www.googleapis.com/auth/spreadsheets"],
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            f"Google Sheets sync failed: credentials file not found at {credentials_value}"
+        ) from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            "Google Sheets sync failed: credentials JSON is invalid"
+        ) from exc
+    except Exception as exc:  # pragma: no cover - defensive for runtime failures
+        raise RuntimeError(f"Google Sheets sync failed: {exc}") from exc
 
 
 def normalize_sheet_row(row: Dict[str, Any]) -> Dict[str, Any]:
@@ -28,22 +64,10 @@ def read_google_sheet_rows(
         )
 
     credentials_path = credentials_path or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    if not credentials_path:
-        raise RuntimeError(
-            "Provide --credentials or set GOOGLE_APPLICATION_CREDENTIALS"
-        )
-
     try:
-        credentials = Credentials.from_service_account_file(
-            credentials_path,
-            scopes=["https://www.googleapis.com/auth/spreadsheets"],
-        )
+        credentials = build_credentials(credentials_path)
         client = gspread.authorize(credentials)
         worksheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
-    except FileNotFoundError as exc:
-        raise RuntimeError(
-            f"Google Sheets sync failed: credentials file not found at {credentials_path}"
-        ) from exc
     except Exception as exc:  # pragma: no cover - defensive for runtime failures
         raise RuntimeError(f"Google Sheets sync failed: {exc}") from exc
 
@@ -66,22 +90,10 @@ def append_google_sheet_rows(
         )
 
     credentials_path = credentials_path or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    if not credentials_path:
-        raise RuntimeError(
-            "Provide --credentials or set GOOGLE_APPLICATION_CREDENTIALS"
-        )
-
     try:
-        credentials = Credentials.from_service_account_file(
-            credentials_path,
-            scopes=["https://www.googleapis.com/auth/spreadsheets"],
-        )
+        credentials = build_credentials(credentials_path)
         client = gspread.authorize(credentials)
         worksheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
-    except FileNotFoundError as exc:
-        raise RuntimeError(
-            f"Google Sheets sync failed: credentials file not found at {credentials_path}"
-        ) from exc
     except Exception as exc:  # pragma: no cover - defensive for runtime failures
         raise RuntimeError(f"Google Sheets sync failed: {exc}") from exc
 
