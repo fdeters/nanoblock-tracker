@@ -101,6 +101,12 @@ Lint with Ruff:
 python -m ruff check .
 ```
 
+Run basic type checking with Pyright:
+
+```bash
+python -m pyright
+```
+
 Run tests:
 
 ```bash

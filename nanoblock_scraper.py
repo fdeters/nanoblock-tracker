@@ -5,7 +5,7 @@ import csv
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 try:
     from dotenv import load_dotenv
@@ -178,7 +178,10 @@ def append_google_sheet_rows(
     client = gspread.authorize(credentials)
     worksheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
     rows = [[product.get(field, "") for field in FIELDNAMES] for product in products]
-    worksheet.append_rows(rows, value_input_option="USER_ENTERED")
+    worksheet.append_rows(
+        rows,
+        value_input_option=cast(Any, "USER_ENTERED"),
+    )
     return len(products)
 
 
