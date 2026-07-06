@@ -145,6 +145,17 @@ def append_google_sheet_rows(
     return len(products)
 
 
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Scrape Nanoblock products and optionally sync them to Google Sheets")
+    parser.add_argument("--url", default=DEFAULT_URL, help="Source page URL")
+    parser.add_argument("--output", default="nanoblock_products.csv", help="Where to write the local CSV export")
+    parser.add_argument("--sheet-id", help="Google Sheets spreadsheet ID to update")
+    parser.add_argument("--sheet-name", help="Worksheet name to update")
+    parser.add_argument("--credentials", help="Path to the Google service account credentials JSON file")
+    parser.add_argument("--env-file", default=".env", help="Path to a .env file containing GOOGLE_SHEET_ID and GOOGLE_APPLICATION_CREDENTIALS")
+    return parser
+
+
 def export_products(products: List[dict], output_path: str | Path | None = None) -> Path:
     output = Path(output_path) if output_path else Path("nanoblock_products.csv")
     with output.open("w", encoding="utf-8-sig", newline="") as handle:
@@ -155,20 +166,14 @@ def export_products(products: List[dict], output_path: str | Path | None = None)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Scrape Nanoblock products and optionally sync them to Google Sheets")
-    parser.add_argument("--url", default=DEFAULT_URL, help="Source page URL")
-    parser.add_argument("--output", default="nanoblock_products.csv", help="Where to write the local CSV export")
-    parser.add_argument("--sheet-id", help="Google Sheets spreadsheet ID to update")
-    parser.add_argument("--sheet-name", default="Sheet1", help="Worksheet name to update")
-    parser.add_argument("--credentials", help="Path to the Google service account credentials JSON file")
-    parser.add_argument("--env-file", default=".env", help="Path to a .env file containing GOOGLE_SHEET_ID and GOOGLE_APPLICATION_CREDENTIALS")
+    parser = build_parser()
     args = parser.parse_args()
 
     load_environment_config(args.env_file)
 
     sheet_id = resolve_config_value(args.sheet_id, "GOOGLE_SHEET_ID")
     credentials_path = resolve_config_value(args.credentials, "GOOGLE_APPLICATION_CREDENTIALS")
-    sheet_name = resolve_config_value(args.sheet_name, "GOOGLE_SHEET_NAME", "Sheet1") or "Sheet1"
+    sheet_name = resolve_config_value(args.sheet_name, "GOOGLE_SHEET_NAME")
 
     html = fetch_page(args.url)
     products = parse_products(html)
