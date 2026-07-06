@@ -1,4 +1,9 @@
 __pycache__/
+.pytest_cache/
 *.pyc
 *.csv
 .venv/
+.env
+credentials/*
+
+!.gitkeep

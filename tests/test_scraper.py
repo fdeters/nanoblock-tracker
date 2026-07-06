@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from nanoblock_scraper import parse_products
+from nanoblock_scraper import merge_products, parse_products
 
 
 SAMPLE_HTML = """
@@ -30,3 +30,37 @@ def test_parse_products_filters_and_normalizes() -> None:
     assert products[2]["Product Code"] == "NBPM_036"
     assert products[2]["Product Name"] == "20th Anniversary"
     assert products[2]["Variant"] == ""
+
+
+def test_merge_products_only_appends_new_codes() -> None:
+    existing_rows = [
+        {
+            "Product Code": "NBPM_001",
+            "Product Name": "Pokémon Center",
+            "Variant": "RS",
+            "Collected": "yes",
+            "Not interested": "",
+        }
+    ]
+    source_products = [
+        {
+            "Product Code": "NBPM_001",
+            "Product Name": "Pokémon Center",
+            "Variant": "RS",
+            "Collected": "",
+            "Not interested": "",
+        },
+        {
+            "Product Code": "NBPM_002",
+            "Product Name": "Pikachu",
+            "Variant": "",
+            "Collected": "",
+            "Not interested": "",
+        },
+    ]
+
+    new_products = merge_products(source_products, existing_rows)
+
+    assert len(new_products) == 1
+    assert new_products[0]["Product Code"] == "NBPM_002"
+    assert new_products[0]["Product Name"] == "Pikachu"
