@@ -14,7 +14,7 @@ Create and activate a project-local virtual environment:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt pytest black ruff
+pip install -r requirements.txt -r requirements-dev.txt
 ```
 
 ## Run
@@ -89,26 +89,20 @@ In GitHub, add these repository secrets or variables:
 
 ## Development
 
-Format Python files with Black:
+A small task runner is included so common developer commands are grouped like package.json scripts:
+
+```bash
+python tasks.py format
+python tasks.py lint
+python tasks.py typecheck
+python tasks.py test
+```
+
+You can also run the underlying tools directly:
 
 ```bash
 python -m black .
-```
-
-Lint with Ruff:
-
-```bash
 python -m ruff check .
-```
-
-Run basic type checking with Pyright:
-
-```bash
 python -m pyright
-```
-
-Run tests:
-
-```bash
 python -m pytest -q
 ```
