@@ -3,8 +3,16 @@ from scripts.run_monthly_sync import build_notification_body
 
 def test_build_notification_body_formats_appended_products() -> None:
     products = [
-        {"Product Code": "NBPM_001", "Product Name": "Pikachu", "Variant": "RS"},
-        {"Product Code": "NBPM_002", "Product Name": "Eevee", "Variant": ""},
+        {
+            "Product Code": "NBPM_001",
+            "Product Name": "Pikachu",
+            "Variant": "RS",
+        },
+        {
+            "Product Code": "NBPM_002",
+            "Product Name": "Eevee",
+            "Variant": "",
+        },
     ]
 
     body = build_notification_body(products)

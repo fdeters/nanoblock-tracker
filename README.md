@@ -78,7 +78,21 @@ In GitHub, add these repository secrets or variables:
 
 > Keep the credentials JSON in GitHub Secrets, not in the repository itself. The workflow writes it to a temporary file at runtime and uses it for the sync.
 
-## Test
+## Development
+
+Format Python files with Black:
+
+```bash
+python3 -m black .
+```
+
+Lint with Ruff:
+
+```bash
+python3 -m ruff check .
+```
+
+Run tests:
 
 ```bash
 python3 -m pytest -q

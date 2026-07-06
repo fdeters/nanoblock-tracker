@@ -22,11 +22,21 @@ except ImportError:  # pragma: no cover - used when optional dependency is not i
     gspread = None
     Credentials = None
 
-DEFAULT_URL = "https://bulbapedia.bulbagarden.net/wiki/Pok%C3%A9mon_Nanoblocks"
-FIELDNAMES = ["Product Name", "Product Code", "Variant", "Collected", "Not interested"]
-PRODUCT_CODE_RE = re.compile(r"\bNBPM(?:_[0-9]{3}|_R[0-9]{2}|_XXX)\b", re.IGNORECASE)
+DEFAULT_URL = "https://bulbapedia.bulbagarden.net/wiki/" "Pok%C3%A9mon_Nanoblocks"
+FIELDNAMES = [
+    "Product Name",
+    "Product Code",
+    "Variant",
+    "Collected",
+    "Not interested",
+]
+PRODUCT_CODE_RE = re.compile(
+    r"\bNBPM(?:_[0-9]{3}|_R[0-9]{2}|_XXX)\b",
+    re.IGNORECASE,
+)
 VARIANT_RE = re.compile(
-    r"\b(RS|DX|Extreme DX|Monotone|Translucent|Pokémon Quest|Galarian Form|Brilliant Shining|Lunar New Year Costume)\b",
+    r"\b(RS|DX|Extreme DX|Monotone|Translucent|Pokémon Quest|"
+    r"Galarian Form|Brilliant Shining|Lunar New Year Costume)\b",
     re.IGNORECASE,
 )
 PARENTHETICAL_RE = re.compile(r"\s*\([^)]*\)\s*$")
@@ -79,9 +89,18 @@ def parse_products(html: str) -> List[dict]:
     return products
 
 
-def merge_products(source_products: List[dict], existing_rows: List[dict]) -> List[dict]:
-    existing_codes = {row.get("Product Code", "") for row in existing_rows if row.get("Product Code")}
-    return [product for product in source_products if product.get("Product Code") not in existing_codes]
+def merge_products(
+    source_products: List[dict],
+    existing_rows: List[dict],
+) -> List[dict]:
+    existing_codes = {
+        row.get("Product Code", "") for row in existing_rows if row.get("Product Code")
+    }
+    return [
+        product
+        for product in source_products
+        if product.get("Product Code") not in existing_codes
+    ]
 
 
 def load_environment_config(env_path: str | None = None) -> None:
@@ -92,7 +111,11 @@ def load_environment_config(env_path: str | None = None) -> None:
         load_dotenv(env_path_obj, override=False)
 
 
-def resolve_config_value(cli_value: str | None, env_key: str, default: str | None = None) -> str | None:
+def resolve_config_value(
+    cli_value: str | None,
+    env_key: str,
+    default: str | None = None,
+) -> str | None:
     if cli_value is not None:
         return cli_value
     return os.getenv(env_key, default)
@@ -108,13 +131,20 @@ def read_google_sheet_rows(
     credentials_path: str | None = None,
 ) -> List[Dict[str, Any]]:
     if gspread is None or Credentials is None:
-        raise RuntimeError("gspread and google-auth are required for Google Sheets sync")
+        raise RuntimeError(
+            "gspread and google-auth are required for Google Sheets sync"
+        )
 
     credentials_path = credentials_path or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if not credentials_path:
-        raise RuntimeError("Provide --credentials or set GOOGLE_APPLICATION_CREDENTIALS")
+        raise RuntimeError(
+            "Provide --credentials or set GOOGLE_APPLICATION_CREDENTIALS"
+        )
 
-    credentials = Credentials.from_service_account_file(credentials_path, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+    credentials = Credentials.from_service_account_file(
+        credentials_path,
+        scopes=["https://www.googleapis.com/auth/spreadsheets"],
+    )
     client = gspread.authorize(credentials)
     worksheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
     rows = worksheet.get_all_records()
@@ -131,13 +161,20 @@ def append_google_sheet_rows(
         return 0
 
     if gspread is None or Credentials is None:
-        raise RuntimeError("gspread and google-auth are required for Google Sheets sync")
+        raise RuntimeError(
+            "gspread and google-auth are required for Google Sheets sync"
+        )
 
     credentials_path = credentials_path or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     if not credentials_path:
-        raise RuntimeError("Provide --credentials or set GOOGLE_APPLICATION_CREDENTIALS")
+        raise RuntimeError(
+            "Provide --credentials or set GOOGLE_APPLICATION_CREDENTIALS"
+        )
 
-    credentials = Credentials.from_service_account_file(credentials_path, scopes=["https://www.googleapis.com/auth/spreadsheets"])
+    credentials = Credentials.from_service_account_file(
+        credentials_path,
+        scopes=["https://www.googleapis.com/auth/spreadsheets"],
+    )
     client = gspread.authorize(credentials)
     worksheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
     rows = [[product.get(field, "") for field in FIELDNAMES] for product in products]
@@ -146,17 +183,44 @@ def append_google_sheet_rows(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Scrape Nanoblock products and optionally sync them to Google Sheets")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Scrape Nanoblock products and optionally sync them to Google " "Sheets"
+        )
+    )
     parser.add_argument("--url", default=DEFAULT_URL, help="Source page URL")
-    parser.add_argument("--output", default="nanoblock_products.csv", help="Where to write the local CSV export")
-    parser.add_argument("--sheet-id", help="Google Sheets spreadsheet ID to update")
-    parser.add_argument("--sheet-name", help="Worksheet name to update")
-    parser.add_argument("--credentials", help="Path to the Google service account credentials JSON file")
-    parser.add_argument("--env-file", default=".env", help="Path to a .env file containing GOOGLE_SHEET_ID and GOOGLE_APPLICATION_CREDENTIALS")
+    parser.add_argument(
+        "--output",
+        default="nanoblock_products.csv",
+        help="Where to write the local CSV export",
+    )
+    parser.add_argument(
+        "--sheet-id",
+        help="Google Sheets spreadsheet ID to update",
+    )
+    parser.add_argument(
+        "--sheet-name",
+        help="Worksheet name to update",
+    )
+    parser.add_argument(
+        "--credentials",
+        help="Path to the Google service account credentials JSON file",
+    )
+    parser.add_argument(
+        "--env-file",
+        default=".env",
+        help=(
+            "Path to a .env file containing GOOGLE_SHEET_ID and "
+            "GOOGLE_APPLICATION_CREDENTIALS"
+        ),
+    )
     return parser
 
 
-def export_products(products: List[dict], output_path: str | Path | None = None) -> Path:
+def export_products(
+    products: List[dict],
+    output_path: str | Path | None = None,
+) -> Path:
     output = Path(output_path) if output_path else Path("nanoblock_products.csv")
     with output.open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=FIELDNAMES)
@@ -188,16 +252,30 @@ def main() -> None:
     load_environment_config(args.env_file)
 
     sheet_id = resolve_config_value(args.sheet_id, "GOOGLE_SHEET_ID")
-    credentials_path = resolve_config_value(args.credentials, "GOOGLE_APPLICATION_CREDENTIALS")
-    sheet_name = resolve_config_value(args.sheet_name, "GOOGLE_SHEET_NAME", "Sheet1") or "Sheet1"
+    credentials_path = resolve_config_value(
+        args.credentials,
+        "GOOGLE_APPLICATION_CREDENTIALS",
+    )
+    sheet_name = (
+        resolve_config_value(args.sheet_name, "GOOGLE_SHEET_NAME", "Sheet1") or "Sheet1"
+    )
 
     html = fetch_page(args.url)
     products = parse_products(html)
 
     if sheet_id:
-        existing_rows = read_google_sheet_rows(sheet_id, sheet_name, credentials_path)
+        existing_rows = read_google_sheet_rows(
+            sheet_id,
+            sheet_name,
+            credentials_path,
+        )
         new_products = merge_products(products, existing_rows)
-        appended = append_google_sheet_rows(sheet_id, new_products, sheet_name, credentials_path)
+        appended = append_google_sheet_rows(
+            sheet_id,
+            new_products,
+            sheet_name,
+            credentials_path,
+        )
         if appended:
             print(f"Appended {appended} new products to Google Sheet {sheet_id}")
             print(build_summary(new_products))

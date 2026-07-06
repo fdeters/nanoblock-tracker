@@ -31,7 +31,11 @@ def send_notification(summary_path: str, recipient: str | None = None) -> None:
         return
 
     subject = "Nanoblock tracker update: new records added"
-    subprocess.run(["mail", "-s", subject, recipient], input=summary.encode("utf-8"), check=False)
+    subprocess.run(
+        ["mail", "-s", subject, recipient],
+        input=summary.encode("utf-8"),
+        check=False,
+    )
 
 
 if __name__ == "__main__":
