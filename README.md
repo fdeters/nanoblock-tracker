@@ -51,6 +51,33 @@ The script will:
 - append only new products
 - leave existing rows and your manual tracking values untouched
 
+## GitHub Actions monthly sync
+
+A GitHub Actions workflow is included at [.github/workflows/monthly-nanoblock-sync.yml](.github/workflows/monthly-nanoblock-sync.yml). It runs on the first day of every month and can also be triggered manually.
+
+### GitHub setup
+
+In GitHub, add these repository secrets or variables:
+
+- Secret: `GOOGLE_CREDENTIALS_JSON`
+  - The full JSON contents of your Google service-account credentials file.
+- Secret: `GOOGLE_SHEET_ID`
+  - The Google Sheets spreadsheet ID.
+- Variable (optional): `GOOGLE_SHEET_NAME`
+  - The worksheet/tab name to update. If omitted, the script falls back to `Sheet1`.
+- Secret or variable (optional): `NOTIFICATION_EMAIL`
+  - The email address that should receive a short summary when new rows are appended by the workflow.
+
+### How to include the Google credentials in GitHub
+
+1. Create or download a Google service-account JSON key from Google Cloud.
+2. In your GitHub repository, open Settings → Secrets and variables → Actions.
+3. Add a new repository secret named `GOOGLE_CREDENTIALS_JSON` and paste the entire JSON contents as the value.
+4. Add another secret named `GOOGLE_SHEET_ID` with the spreadsheet ID.
+5. Optional: add a repository variable named `GOOGLE_SHEET_NAME` if your sheet is not named `Sheet1`.
+
+> Keep the credentials JSON in GitHub Secrets, not in the repository itself. The workflow writes it to a temporary file at runtime and uses it for the sync.
+
 ## Test
 
 ```bash

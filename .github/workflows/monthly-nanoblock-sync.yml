@@ -1,0 +1,49 @@
+name: Monthly Nanoblock Sync
+
+on:
+  schedule:
+    - cron: "0 9 1 * *"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Write credentials file from secret
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+        run: |
+          mkdir -p credentials
+          printf '%s' "$GOOGLE_CREDENTIALS_JSON" > credentials/google-service-account.json
+
+      - name: Run scraper
+        env:
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/credentials/google-service-account.json
+          GOOGLE_SHEET_NAME: ${{ vars.GOOGLE_SHEET_NAME || 'Sheet1' }}
+        run: |
+          python nanoblock_scraper.py --sheet-id "$GOOGLE_SHEET_ID" --credentials "$GOOGLE_APPLICATION_CREDENTIALS" --sheet-name "$GOOGLE_SHEET_NAME" > sync-output.txt
+
+      - name: Send email summary if new rows were added
+        if: success()
+        env:
+          NOTIFICATION_EMAIL: ${{ vars.NOTIFICATION_EMAIL || secrets.NOTIFICATION_EMAIL }}
+        run: |
+          if [ -s sync-output.txt ]; then
+            if grep -q "Appended" sync-output.txt; then
+              python scripts/run_monthly_sync.py sync-output.txt "$NOTIFICATION_EMAIL"
+            fi
+          fi

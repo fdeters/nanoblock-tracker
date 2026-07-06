@@ -165,6 +165,22 @@ def export_products(products: List[dict], output_path: str | Path | None = None)
     return output
 
 
+def build_summary(products: List[dict]) -> str:
+    if not products:
+        return "No new Nanoblock products were added."
+
+    lines = [f"Added {len(products)} new Nanoblock product(s):"]
+    for product in products[:10]:
+        code = product.get("Product Code", "")
+        name = product.get("Product Name", "")
+        variant = product.get("Variant", "")
+        suffix = f" ({variant})" if variant else ""
+        lines.append(f"- {code}: {name}{suffix}")
+    if len(products) > 10:
+        lines.append(f"...and {len(products) - 10} more")
+    return "\n".join(lines)
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -173,12 +189,10 @@ def main() -> None:
 
     sheet_id = resolve_config_value(args.sheet_id, "GOOGLE_SHEET_ID")
     credentials_path = resolve_config_value(args.credentials, "GOOGLE_APPLICATION_CREDENTIALS")
-    sheet_name = resolve_config_value(args.sheet_name, "GOOGLE_SHEET_NAME")
+    sheet_name = resolve_config_value(args.sheet_name, "GOOGLE_SHEET_NAME", "Sheet1") or "Sheet1"
 
     html = fetch_page(args.url)
     products = parse_products(html)
-    output_path = export_products(products, args.output)
-    print(f"Wrote {len(products)} products to {output_path}")
 
     if sheet_id:
         existing_rows = read_google_sheet_rows(sheet_id, sheet_name, credentials_path)
@@ -186,8 +200,12 @@ def main() -> None:
         appended = append_google_sheet_rows(sheet_id, new_products, sheet_name, credentials_path)
         if appended:
             print(f"Appended {appended} new products to Google Sheet {sheet_id}")
+            print(build_summary(new_products))
         else:
             print("No new products to append to Google Sheet")
+    else:
+        export_products(products, args.output)
+        print(f"Wrote {len(products)} products to {args.output}")
 
 
 if __name__ == "__main__":

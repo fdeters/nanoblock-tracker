@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from nanoblock_scraper import build_parser, merge_products, parse_products
+from nanoblock_scraper import build_parser, merge_products, parse_products, resolve_config_value
 
 
 SAMPLE_HTML = """
@@ -39,6 +39,12 @@ def test_build_parser_leaves_sheet_name_unset_until_explicitly_provided(monkeypa
     args = parser.parse_args([])
 
     assert args.sheet_name is None
+
+
+def test_resolve_config_value_falls_back_to_default(monkeypatch) -> None:
+    monkeypatch.delenv("GOOGLE_SHEET_NAME", raising=False)
+
+    assert resolve_config_value(None, "GOOGLE_SHEET_NAME", "Sheet1") == "Sheet1"
 
 
 def test_merge_products_only_appends_new_codes() -> None:
