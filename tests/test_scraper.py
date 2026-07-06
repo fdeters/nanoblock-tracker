@@ -1,5 +1,10 @@
+import sys
+
+import pytest
+
 from nanoblock_scraper import (
     build_parser,
+    main,
     merge_products,
     parse_products,
     resolve_config_value,
@@ -58,6 +63,19 @@ def test_resolve_config_value_falls_back_to_default(
         )
         == "Sheet1"
     )
+
+
+def test_main_exits_with_error_when_sync_requested_without_credentials(
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+    monkeypatch.setattr("nanoblock_scraper.fetch_page", lambda url: "<table></table>")
+    monkeypatch.setattr("nanoblock_scraper.parse_products", lambda html: [])
+    monkeypatch.setattr(sys, "argv", ["nanoblock_scraper.py", "--sheet-id", "sheet-id"])
+
+    with pytest.raises(SystemExit, match="Google Sheets sync failed"):
+        main()
 
 
 def test_merge_products_only_appends_new_codes() -> None:

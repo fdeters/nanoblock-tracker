@@ -141,12 +141,20 @@ def read_google_sheet_rows(
             "Provide --credentials or set GOOGLE_APPLICATION_CREDENTIALS"
         )
 
-    credentials = Credentials.from_service_account_file(
-        credentials_path,
-        scopes=["https://www.googleapis.com/auth/spreadsheets"],
-    )
-    client = gspread.authorize(credentials)
-    worksheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
+    try:
+        credentials = Credentials.from_service_account_file(
+            credentials_path,
+            scopes=["https://www.googleapis.com/auth/spreadsheets"],
+        )
+        client = gspread.authorize(credentials)
+        worksheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            f"Google Sheets sync failed: credentials file not found at {credentials_path}"
+        ) from exc
+    except Exception as exc:  # pragma: no cover - defensive for runtime failures
+        raise RuntimeError(f"Google Sheets sync failed: {exc}") from exc
+
     rows = worksheet.get_all_records()
     return [normalize_sheet_row(row) for row in rows]
 
@@ -171,12 +179,20 @@ def append_google_sheet_rows(
             "Provide --credentials or set GOOGLE_APPLICATION_CREDENTIALS"
         )
 
-    credentials = Credentials.from_service_account_file(
-        credentials_path,
-        scopes=["https://www.googleapis.com/auth/spreadsheets"],
-    )
-    client = gspread.authorize(credentials)
-    worksheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
+    try:
+        credentials = Credentials.from_service_account_file(
+            credentials_path,
+            scopes=["https://www.googleapis.com/auth/spreadsheets"],
+        )
+        client = gspread.authorize(credentials)
+        worksheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            f"Google Sheets sync failed: credentials file not found at {credentials_path}"
+        ) from exc
+    except Exception as exc:  # pragma: no cover - defensive for runtime failures
+        raise RuntimeError(f"Google Sheets sync failed: {exc}") from exc
+
     rows = [[product.get(field, "") for field in FIELDNAMES] for product in products]
     worksheet.append_rows(
         rows,
@@ -267,18 +283,22 @@ def main() -> None:
     products = parse_products(html)
 
     if sheet_id:
-        existing_rows = read_google_sheet_rows(
-            sheet_id,
-            sheet_name,
-            credentials_path,
-        )
-        new_products = merge_products(products, existing_rows)
-        appended = append_google_sheet_rows(
-            sheet_id,
-            new_products,
-            sheet_name,
-            credentials_path,
-        )
+        try:
+            existing_rows = read_google_sheet_rows(
+                sheet_id,
+                sheet_name,
+                credentials_path,
+            )
+            new_products = merge_products(products, existing_rows)
+            appended = append_google_sheet_rows(
+                sheet_id,
+                new_products,
+                sheet_name,
+                credentials_path,
+            )
+        except (RuntimeError, FileNotFoundError) as exc:
+            raise SystemExit(f"Google Sheets sync failed: {exc}") from exc
+
         if appended:
             print(f"Appended {appended} new products to Google Sheet {sheet_id}")
             print(build_summary(new_products))

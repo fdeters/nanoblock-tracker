@@ -35,6 +35,15 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/credentials/google-service-account.json
           GOOGLE_SHEET_NAME: ${{ vars.GOOGLE_SHEET_NAME || 'Sheet1' }}
         run: |
+          set -euo pipefail
+          if [ -z "$GOOGLE_SHEET_ID" ]; then
+            echo "Google Sheets sync failed: GOOGLE_SHEET_ID is not configured" >&2
+            exit 1
+          fi
+          if [ ! -f "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+            echo "Google Sheets sync failed: credentials file not found at $GOOGLE_APPLICATION_CREDENTIALS" >&2
+            exit 1
+          fi
           python nanoblock_scraper.py --sheet-id "$GOOGLE_SHEET_ID" --credentials "$GOOGLE_APPLICATION_CREDENTIALS" --sheet-name "$GOOGLE_SHEET_NAME" > sync-output.txt
 
       - name: Send email summary if new rows were added
