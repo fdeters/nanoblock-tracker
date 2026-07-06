@@ -38,9 +38,7 @@ def build_credentials(credentials_value: str | None) -> Any:
             scopes=["https://www.googleapis.com/auth/spreadsheets"],
         )
     except FileNotFoundError as exc:
-        raise RuntimeError(
-            f"credentials file not found: {credentials_value}"
-        ) from exc
+        raise RuntimeError(f"credentials file not found: {credentials_value}") from exc
     except json.JSONDecodeError as exc:
         raise RuntimeError("credentials JSON is invalid") from exc
     except Exception as exc:  # pragma: no cover - defensive for runtime failures
