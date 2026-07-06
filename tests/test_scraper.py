@@ -5,7 +5,6 @@ from nanoblock_scraper import (
     resolve_config_value,
 )
 
-
 SAMPLE_HTML = """
 <table class="roundy">
   <tr><th>Code</th><th>Name</th></tr>
