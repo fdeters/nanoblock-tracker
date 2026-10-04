@@ -15,7 +15,10 @@ from .constants import (
     VARIANT_RE,
 )
 
-USER_AGENT = "NanoblockTracker/1.0 (+https://github.com/fdeters/nanoblock-tracker)"
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
 
 
 def fetch_page(url: str = DEFAULT_URL) -> str:
