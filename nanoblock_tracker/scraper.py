@@ -16,9 +16,15 @@ from .constants import (
     VARIANT_RE,
 )
 
+USER_AGENT = "NanoblockTracker/1.0 (+https://github.com/fdeters/nanoblock-tracker)"
+
 
 def fetch_page(url: str = DEFAULT_URL) -> str:
-    response = requests.get(url, timeout=30)
+    response = requests.get(
+        url,
+        headers={"User-Agent": USER_AGENT},
+        timeout=30,
+    )
     response.raise_for_status()
     return response.text
 
