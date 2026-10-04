@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List, cast
+from typing import Any, cast
 
 try:
     import gspread
@@ -45,7 +45,7 @@ def build_credentials(credentials_value: str | None) -> Any:
         raise RuntimeError(str(exc)) from exc
 
 
-def normalize_sheet_row(row: Dict[str, Any]) -> Dict[str, Any]:
+def normalize_sheet_row(row: dict[str, Any]) -> dict[str, Any]:
     return {field: row.get(field, "") for field in FIELDNAMES}
 
 
@@ -53,7 +53,7 @@ def read_google_sheet_rows(
     spreadsheet_id: str,
     sheet_name: str = "Sheet1",
     credentials_path: str | None = None,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     if gspread is None or Credentials is None:
         raise RuntimeError(
             "gspread and google-auth are required for Google Sheets sync"
@@ -73,7 +73,7 @@ def read_google_sheet_rows(
 
 def append_google_sheet_rows(
     spreadsheet_id: str,
-    products: List[Dict[str, Any]],
+    products: list[dict[str, Any]],
     sheet_name: str = "Sheet1",
     credentials_path: str | None = None,
 ) -> int:
