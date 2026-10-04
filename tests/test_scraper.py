@@ -3,11 +3,13 @@ import sys
 
 import pytest
 
+import nanoblock_tracker.scraper as scraper_module
 from nanoblock_scraper import main
 from nanoblock_tracker.config import build_parser, resolve_config_value
 from nanoblock_tracker.scraper import (
     build_summary,
     export_products,
+    fetch_page,
     merge_products,
     parse_products,
 )
@@ -22,6 +24,28 @@ SAMPLE_HTML = """
   <tr><td>ABC123</td><td>Not a Nanoblock product</td></tr>
 </table>
 """
+
+
+def test_fetch_page_identifies_the_scraper(monkeypatch) -> None:
+    class DummyResponse:
+        text = "page contents"
+
+        @staticmethod
+        def raise_for_status() -> None:
+            pass
+
+    requested = {}
+
+    def mock_get(url, **kwargs):
+        requested["url"] = url
+        requested.update(kwargs)
+        return DummyResponse()
+
+    monkeypatch.setattr(scraper_module.requests, "get", mock_get)
+
+    assert fetch_page("https://example.com") == "page contents"
+    assert requested["url"] == "https://example.com"
+    assert requested["headers"]["User-Agent"].startswith("NanoblockTracker/")
 
 
 def test_parse_products_filters_and_normalizes() -> None:

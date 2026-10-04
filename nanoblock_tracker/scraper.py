@@ -3,7 +3,6 @@ from __future__ import annotations
 import csv
 import re
 from pathlib import Path
-from typing import List
 
 import requests
 from bs4 import BeautifulSoup
@@ -16,16 +15,22 @@ from .constants import (
     VARIANT_RE,
 )
 
+USER_AGENT = "NanoblockTracker/1.0 (+https://github.com/fdeters/nanoblock-tracker)"
+
 
 def fetch_page(url: str = DEFAULT_URL) -> str:
-    response = requests.get(url, timeout=30)
+    response = requests.get(
+        url,
+        headers={"User-Agent": USER_AGENT},
+        timeout=30,
+    )
     response.raise_for_status()
     return response.text
 
 
-def parse_products(html: str) -> List[dict]:
+def parse_products(html: str) -> list[dict]:
     soup = BeautifulSoup(html, "html.parser")
-    products: List[dict] = []
+    products: list[dict] = []
 
     for table in soup.select("table.roundy"):
         for row in table.select("tr"):
@@ -65,9 +70,9 @@ def parse_products(html: str) -> List[dict]:
 
 
 def merge_products(
-    source_products: List[dict],
-    existing_rows: List[dict],
-) -> List[dict]:
+    source_products: list[dict],
+    existing_rows: list[dict],
+) -> list[dict]:
     existing_codes = {
         row.get("Product Code", "") for row in existing_rows if row.get("Product Code")
     }
@@ -79,7 +84,7 @@ def merge_products(
 
 
 def export_products(
-    products: List[dict],
+    products: list[dict],
     output_path: str | Path | None = None,
 ) -> Path:
     output = Path(output_path) if output_path else Path("nanoblock_products.csv")
@@ -90,7 +95,7 @@ def export_products(
     return output
 
 
-def build_summary(products: List[dict]) -> str:
+def build_summary(products: list[dict]) -> str:
     if not products:
         return "No new Nanoblock products were added."
 
