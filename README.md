@@ -91,7 +91,7 @@ Bulbapedia is behind Cloudflare and blocks GitHub-hosted runners, so the recomme
    - Settings: run as soon as possible after a missed start, start only if a network connection is available, and retry on failure (e.g. every 30 minutes, up to 3 times).
 8. Right-click the task and choose Run, then check the log and the sheet.
 
-To pick up updates, run `git pull` and `.venv\Scripts\pip install -r requirements.txt`.
+Each run of `run_sync.ps1` first runs `git pull --ff-only` and reinstalls dependencies only if `requirements.txt` changed since the last successful install (tracked in `.venv\requirements.sha256`). If either step fails, the failure is logged and the sync continues with the current checkout. Keep the clone free of local edits so the fast-forward pull succeeds.
 
 ## GitHub Actions sync (manual)
 

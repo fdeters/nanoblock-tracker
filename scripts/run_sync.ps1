@@ -24,6 +24,32 @@ Write-Log "Starting sync"
 $envFile = Join-Path $repo ".env"
 $previous = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
+
+# Update step: failures are logged but never block the sync itself.
+$requirements = Join-Path $repo "requirements.txt"
+$hashFile = Join-Path $repo ".venv\requirements.sha256"
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    git -C $repo pull --ff-only 2>&1 | ForEach-Object { Write-Log "git: $_" }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Log "git pull failed (exit code $LASTEXITCODE); continuing with the current checkout"
+    }
+} else {
+    Write-Log "git not found on PATH; skipping git pull"
+}
+
+$currentHash = (Get-FileHash -Algorithm SHA256 $requirements).Hash
+$installedHash = if (Test-Path $hashFile) { (Get-Content $hashFile -Raw).Trim() } else { "" }
+if ($currentHash -ne $installedHash) {
+    Write-Log "requirements.txt changed; installing dependencies"
+    & $python -m pip install --disable-pip-version-check -r $requirements 2>&1 |
+        ForEach-Object { Write-Log "pip: $_" }
+    if ($LASTEXITCODE -eq 0) {
+        Set-Content -Path $hashFile -Value $currentHash
+    } else {
+        Write-Log "pip install failed (exit code $LASTEXITCODE); continuing"
+    }
+}
+
 & $python (Join-Path $repo "nanoblock_scraper.py") --env-file $envFile 2>&1 |
     ForEach-Object { Write-Log "$_" }
 $exitCode = $LASTEXITCODE
