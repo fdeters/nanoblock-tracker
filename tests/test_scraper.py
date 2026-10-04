@@ -26,7 +26,7 @@ SAMPLE_HTML = """
 """
 
 
-def test_fetch_page_identifies_the_scraper(monkeypatch) -> None:
+def test_fetch_page_sends_browser_user_agent(monkeypatch) -> None:
     class DummyResponse:
         text = "page contents"
 
@@ -45,7 +45,7 @@ def test_fetch_page_identifies_the_scraper(monkeypatch) -> None:
 
     assert fetch_page("https://example.com") == "page contents"
     assert requested["url"] == "https://example.com"
-    assert requested["headers"]["User-Agent"].startswith("NanoblockTracker/")
+    assert requested["headers"]["User-Agent"].startswith("Mozilla/5.0")
 
 
 def test_parse_products_filters_and_normalizes() -> None:
