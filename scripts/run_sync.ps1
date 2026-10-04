@@ -50,6 +50,13 @@ if ($currentHash -ne $installedHash) {
     }
 }
 
+& $python -c "import sys; from nanoblock_tracker.config import load_environment_config, resolve_config_value; load_environment_config(sys.argv[1]); sys.exit(0 if resolve_config_value(None, 'GOOGLE_SHEET_ID') else 1)" $envFile 2>&1 |
+    ForEach-Object { Write-Log "config: $_" }
+if ($LASTEXITCODE -ne 0) {
+    Write-Log "GOOGLE_SHEET_ID is missing or empty; refusing to run a CSV-only export"
+    exit 1
+}
+
 & $python (Join-Path $repo "nanoblock_scraper.py") --env-file $envFile 2>&1 |
     ForEach-Object { Write-Log "$_" }
 $exitCode = $LASTEXITCODE
