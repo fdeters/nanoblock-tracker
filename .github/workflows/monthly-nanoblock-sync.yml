@@ -1,8 +1,8 @@
 name: Monthly Nanoblock Sync
 
 on:
-  schedule:
-    - cron: "0 9 1 * *"
+  # Scheduled runs are disabled: Bulbapedia's Cloudflare blocks GitHub-hosted runners.
+  # The monthly sync runs as a Windows scheduled task instead (see README).
   workflow_dispatch:
 
 jobs:

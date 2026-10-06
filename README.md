@@ -68,9 +68,34 @@ The script will:
 - append only new products
 - leave existing rows and your manual tracking values untouched
 
-## GitHub Actions monthly sync
+## Run on Windows (scheduled task)
 
-A GitHub Actions workflow is included at [.github/workflows/monthly-nanoblock-sync.yml](.github/workflows/monthly-nanoblock-sync.yml). It runs on the first day of every month and can also be triggered manually.
+Bulbapedia is behind Cloudflare and blocks GitHub-hosted runners, so the recommended way to run the monthly sync is a Windows scheduled task on a home connection.
+
+1. Install Python 3.11 (check "Add to PATH") and verify with `py -3.11 --version`.
+2. Clone the repo to a stable path, e.g. `C:\Tools\nanoblock-tracker`.
+3. Create the virtual environment and install dependencies:
+
+   ```powershell
+   cd C:\Tools\nanoblock-tracker
+   py -3.11 -m venv .venv
+   .venv\Scripts\pip install -r requirements.txt
+   ```
+
+4. Create `.env` in the repo root with `GOOGLE_SHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS` (absolute path to the service-account JSON, kept outside the repo or in the git-ignored `credentials/` folder) and optionally `GOOGLE_SHEET_NAME`. Share the sheet with the service account's email as an editor.
+5. Verify the scrape works from your PC without updating the sheet: `.venv\Scripts\python nanoblock_scraper.py --sheet-id "" --output test.csv`. If you get a 403, Cloudflare is challenging `requests`; a browser-based fetcher would be needed.
+6. Test the wrapper: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_sync.ps1`. It appends timestamped output to `logs\sync-YYYY-MM.log` and returns the scraper's exit code.
+7. In Task Scheduler, create a task:
+   - Trigger: Monthly, day 1, 9:00 AM.
+   - Action: program `powershell.exe`, arguments `-NoProfile -ExecutionPolicy Bypass -File C:\Tools\nanoblock-tracker\scripts\run_sync.ps1`, "Start in" `C:\Tools\nanoblock-tracker`.
+   - Settings: run as soon as possible after a missed start, start only if a network connection is available, and retry on failure (e.g. every 30 minutes, up to 3 times).
+8. Right-click the task and choose Run, then check the log and the sheet.
+
+Each run of `run_sync.ps1` first runs `git pull --ff-only` and reinstalls dependencies only if `requirements.txt` changed since the last successful install (tracked in `.venv\requirements.sha256`). If either step fails, the failure is logged and the sync continues with the current checkout. Keep the clone free of local edits so the fast-forward pull succeeds.
+
+## GitHub Actions sync (manual)
+
+A GitHub Actions workflow is included at [.github/workflows/monthly-nanoblock-sync.yml](.github/workflows/monthly-nanoblock-sync.yml). Its monthly schedule is disabled because GitHub-hosted runners are blocked by Bulbapedia (HTTP 403); it can still be triggered manually.
 
 ### GitHub setup
 
