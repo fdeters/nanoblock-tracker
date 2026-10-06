@@ -34,14 +34,12 @@ WAYBACK_TIMESTAMP_RE = re.compile(r"/web/(\d{4})(\d{2})(\d{2})")
 BROWSER_PROFILE_DIR = Path(".browser-profile")
 WAYBACK_URL = "https://web.archive.org/web/2id_/"
 CONTENT_SELECTOR = "table.roundy"
-BROWSER_ARGS = ["--disable-blink-features=AutomationControlled"]
 
 
 def _launch_context(playwright, headless: bool):
     options = {
         "user_data_dir": str(BROWSER_PROFILE_DIR),
         "headless": headless,
-        "args": BROWSER_ARGS,
         "chromium_sandbox": True,
         "user_agent": USER_AGENT,
     }
