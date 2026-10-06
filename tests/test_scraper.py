@@ -61,6 +61,8 @@ def test_fetch_page_falls_back_to_browser_on_403(monkeypatch) -> None:
     monkeypatch.setattr(
         scraper_module.requests, "get", lambda url, **kwargs: BlockedResponse()
     )
+    monkeypatch.setattr(scraper_module, "fetch_page_impersonated", lambda url: None)
+    monkeypatch.setattr(scraper_module, "fetch_page_api", lambda url: None)
     monkeypatch.setattr(
         scraper_module, "fetch_page_browser", lambda url: f"browser:{url}"
     )
@@ -86,6 +88,7 @@ def test_fetch_page_falls_back_to_api_on_403(monkeypatch) -> None:
         return ApiResponse() if "api.php" in url else Blocked()
 
     monkeypatch.setattr(scraper_module.requests, "get", fake_get)
+    monkeypatch.setattr(scraper_module, "fetch_page_impersonated", lambda url: None)
     monkeypatch.setattr(
         scraper_module,
         "fetch_page_browser",
@@ -97,6 +100,37 @@ def test_fetch_page_falls_back_to_api_on_403(monkeypatch) -> None:
     assert html == "<table class='roundy'></table>"
     assert calls[1][0] == "https://example.com/w/api.php"
     assert calls[1][1]["page"] == "Pokémon_Nanoblocks"
+
+
+def _blocked(monkeypatch) -> None:
+    class Blocked:
+        status_code = 403
+        ok = False
+
+    monkeypatch.setattr(scraper_module.requests, "get", lambda url, **kwargs: Blocked())
+
+
+def test_fetch_page_uses_impersonated_client_on_403(monkeypatch) -> None:
+    _blocked(monkeypatch)
+    monkeypatch.setattr(
+        scraper_module, "fetch_page_impersonated", lambda url: "impersonated"
+    )
+
+    assert fetch_page("https://example.com/wiki/X") == "impersonated"
+
+
+def test_fetch_page_falls_back_to_archive_when_browser_fails(monkeypatch) -> None:
+    _blocked(monkeypatch)
+    monkeypatch.setattr(scraper_module, "fetch_page_impersonated", lambda url: None)
+    monkeypatch.setattr(scraper_module, "fetch_page_api", lambda url: None)
+
+    def fail(url):
+        raise scraper_module.PlaywrightError("timeout")
+
+    monkeypatch.setattr(scraper_module, "fetch_page_browser", fail)
+    monkeypatch.setattr(scraper_module, "fetch_page_archive", lambda url: "archived")
+
+    assert fetch_page("https://example.com/wiki/X") == "archived"
 
 
 def test_parse_products_filters_and_normalizes() -> None:

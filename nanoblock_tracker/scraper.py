@@ -7,6 +7,7 @@ from urllib.parse import unquote, urlparse
 
 import requests
 from bs4 import BeautifulSoup
+from playwright.sync_api import Error as PlaywrightError
 
 from .constants import (
     DEFAULT_URL,
@@ -22,41 +23,71 @@ USER_AGENT = (
 )
 
 BROWSER_TIMEOUT_MS = 60_000
-
-
-BROWSER_ARGS = ["--disable-blink-features=AutomationControlled"]
+CHALLENGE_WAIT_MS = 180_000
+BROWSER_PROFILE_DIR = Path(".browser-profile")
+WAYBACK_URL = "https://web.archive.org/web/2id_/"
 CONTENT_SELECTOR = "table.roundy"
+BROWSER_ARGS = ["--disable-blink-features=AutomationControlled"]
 
 
-def _launch_browser(playwright, headless: bool):
-    from playwright.sync_api import Error as PlaywrightError
-
+def _launch_context(playwright, headless: bool):
+    options = {
+        "user_data_dir": str(BROWSER_PROFILE_DIR),
+        "headless": headless,
+        "args": BROWSER_ARGS,
+        "user_agent": USER_AGENT,
+    }
     try:
-        return playwright.chromium.launch(
-            channel="chrome", headless=headless, args=BROWSER_ARGS
+        return playwright.chromium.launch_persistent_context(
+            channel="chrome", **options
         )
     except PlaywrightError:
-        return playwright.chromium.launch(headless=headless, args=BROWSER_ARGS)
+        return playwright.chromium.launch_persistent_context(**options)
 
 
 def fetch_page_browser(url: str = DEFAULT_URL, headless: bool = False) -> str:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as playwright:
-        browser = _launch_browser(playwright, headless)
+        context = _launch_context(playwright, headless)
         try:
-            context = browser.new_context(user_agent=USER_AGENT)
             context.add_init_script(
                 "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
-            page = context.new_page()
+            page = context.pages[0] if context.pages else context.new_page()
             page.goto(url, timeout=BROWSER_TIMEOUT_MS)
+            # A persistent profile keeps Cloudflare clearance cookies between
+            # runs; if a checkbox challenge appears, solve it in the window.
             page.wait_for_selector(
-                CONTENT_SELECTOR, state="attached", timeout=BROWSER_TIMEOUT_MS
+                CONTENT_SELECTOR, state="attached", timeout=CHALLENGE_WAIT_MS
             )
             return page.content()
         finally:
-            browser.close()
+            context.close()
+
+
+def fetch_page_impersonated(url: str = DEFAULT_URL) -> str | None:
+    from curl_cffi import requests as curl_requests
+
+    try:
+        response = curl_requests.get(url, impersonate="chrome", timeout=30)
+    except curl_requests.RequestsError:
+        return None
+    if response.status_code != 200 or CONTENT_SELECTOR not in response.text:
+        return None
+    return response.text
+
+
+def fetch_page_archive(url: str = DEFAULT_URL) -> str | None:
+    try:
+        response = requests.get(
+            WAYBACK_URL + url, headers={"User-Agent": USER_AGENT}, timeout=60
+        )
+    except requests.RequestException:
+        return None
+    if not response.ok or CONTENT_SELECTOR not in response.text:
+        return None
+    return response.text
 
 
 def fetch_page_api(url: str = DEFAULT_URL) -> str | None:
@@ -90,13 +121,26 @@ def fetch_page(url: str = DEFAULT_URL) -> str:
         headers={"User-Agent": USER_AGENT},
         timeout=30,
     )
-    if response.status_code == 403:
-        html = fetch_page_api(url)
+    if response.status_code != 403:
+        response.raise_for_status()
+        return response.text
+
+    for fetch in (fetch_page_impersonated, fetch_page_api):
+        html = fetch(url)
         if html:
             return html
+
+    browser_error: Exception | None = None
+    try:
         return fetch_page_browser(url)
-    response.raise_for_status()
-    return response.text
+    except PlaywrightError as error:
+        browser_error = error
+
+    html = fetch_page_archive(url)
+    if html:
+        print("Warning: live page blocked; using the latest Wayback Machine copy.")
+        return html
+    raise RuntimeError(f"All fetch methods were blocked: {browser_error}")
 
 
 def parse_products(html: str) -> list[dict]:
