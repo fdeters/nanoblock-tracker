@@ -29,6 +29,7 @@ SAMPLE_HTML = """
 def test_fetch_page_sends_browser_user_agent(monkeypatch) -> None:
     class DummyResponse:
         text = "page contents"
+        status_code = 200
 
         @staticmethod
         def raise_for_status() -> None:
@@ -46,6 +47,25 @@ def test_fetch_page_sends_browser_user_agent(monkeypatch) -> None:
     assert fetch_page("https://example.com") == "page contents"
     assert requested["url"] == "https://example.com"
     assert requested["headers"]["User-Agent"].startswith("Mozilla/5.0")
+
+
+def test_fetch_page_falls_back_to_browser_on_403(monkeypatch) -> None:
+    class BlockedResponse:
+        status_code = 403
+        text = "challenge"
+
+        @staticmethod
+        def raise_for_status() -> None:
+            raise AssertionError("should not be called")
+
+    monkeypatch.setattr(
+        scraper_module.requests, "get", lambda url, **kwargs: BlockedResponse()
+    )
+    monkeypatch.setattr(
+        scraper_module, "fetch_page_browser", lambda url: f"browser:{url}"
+    )
+
+    assert fetch_page("https://example.com") == "browser:https://example.com"
 
 
 def test_parse_products_filters_and_normalizes() -> None:

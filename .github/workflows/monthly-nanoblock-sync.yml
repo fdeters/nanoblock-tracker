@@ -21,6 +21,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
 
       - name: Run scraper
         id: run_scraper
@@ -40,7 +41,7 @@ jobs:
           fi
 
           GOOGLE_SHEET_NAME="${GOOGLE_SHEET_NAME:-Sheet1}"
-          python nanoblock_scraper.py --sheet-id "$GOOGLE_SHEET_ID" --credentials "$GOOGLE_CREDENTIALS_JSON" --sheet-name "$GOOGLE_SHEET_NAME" 2>&1 | tee sync-output.txt
+          xvfb-run -a python nanoblock_scraper.py --sheet-id "$GOOGLE_SHEET_ID" --credentials "$GOOGLE_CREDENTIALS_JSON" --sheet-name "$GOOGLE_SHEET_NAME" 2>&1 | tee sync-output.txt
 
       - name: Publish sync summary
         if: always()
