@@ -45,6 +45,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--challenge-timeout",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "Seconds the browser fallback waits for the Cloudflare challenge "
+            "to clear (default: 20). Use a larger value for unattended runs"
+        ),
+    )
+    parser.add_argument(
         "--sheet-id",
         help="Google Sheets spreadsheet ID to update",
     )

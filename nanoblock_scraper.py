@@ -41,7 +41,7 @@ def main() -> None:
     )
 
     try:
-        html = fetch_page(args.url)
+        html = fetch_page(args.url, args.challenge_timeout)
     except Exception as exc:
         raise SystemExit(f"Scrape failed: {exc}") from exc
 

@@ -67,7 +67,7 @@ def test_fetch_page_falls_back_to_browser_on_403(monkeypatch) -> None:
     monkeypatch.setattr(scraper_module, "fetch_page_impersonated", lambda url: None)
     monkeypatch.setattr(scraper_module, "fetch_page_api", lambda url: None)
     monkeypatch.setattr(
-        scraper_module, "fetch_page_browser", lambda url: f"browser:{url}"
+        scraper_module, "fetch_page_browser", lambda url, **kwargs: f"browser:{url}"
     )
 
     assert fetch_page("https://example.com") == "browser:https://example.com"
@@ -95,7 +95,7 @@ def test_fetch_page_falls_back_to_api_on_403(monkeypatch) -> None:
     monkeypatch.setattr(
         scraper_module,
         "fetch_page_browser",
-        lambda url: (_ for _ in ()).throw(AssertionError("no browser")),
+        lambda url, **kwargs: (_ for _ in ()).throw(AssertionError("no browser")),
     )
 
     html = fetch_page("https://example.com/wiki/Pok%C3%A9mon_Nanoblocks")
@@ -127,7 +127,7 @@ def test_fetch_page_falls_back_to_archive_when_browser_fails(monkeypatch) -> Non
     monkeypatch.setattr(scraper_module, "fetch_page_impersonated", lambda url: None)
     monkeypatch.setattr(scraper_module, "fetch_page_api", lambda url: None)
 
-    def fail(url):
+    def fail(url, **kwargs):
         raise scraper_module.PlaywrightError("timeout")
 
     monkeypatch.setattr(scraper_module, "fetch_page_browser", fail)
@@ -153,7 +153,9 @@ def test_fetch_page_logs_each_method(monkeypatch, capsys) -> None:
     _blocked(monkeypatch)
     monkeypatch.setattr(scraper_module, "fetch_page_impersonated", lambda url: None)
     monkeypatch.setattr(scraper_module, "fetch_page_api", lambda url: None)
-    monkeypatch.setattr(scraper_module, "fetch_page_browser", lambda url: "page")
+    monkeypatch.setattr(
+        scraper_module, "fetch_page_browser", lambda url, **kwargs: "page"
+    )
 
     assert fetch_page("https://example.com/wiki/X") == "page"
     out = capsys.readouterr().out
@@ -209,7 +211,9 @@ def test_main_exits_with_error_when_sync_requested_without_credentials(
 ) -> None:
     monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
     monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
-    monkeypatch.setattr("nanoblock_scraper.fetch_page", lambda url: "<table></table>")
+    monkeypatch.setattr(
+        "nanoblock_scraper.fetch_page", lambda url, timeout: "<table></table>"
+    )
     monkeypatch.setattr("nanoblock_scraper.parse_products", lambda html: [])
     monkeypatch.setattr(sys, "argv", ["nanoblock_scraper.py", "--sheet-id", "sheet-id"])
 
@@ -302,7 +306,9 @@ def test_resolve_output_path_puts_bare_names_in_output_folder() -> None:
 
 def test_main_with_output_skips_google_sheets(monkeypatch, tmp_path, capsys) -> None:
     out = tmp_path / "test.csv"
-    monkeypatch.setattr("nanoblock_scraper.fetch_page", lambda url: "<table></table>")
+    monkeypatch.setattr(
+        "nanoblock_scraper.fetch_page", lambda url, timeout: "<table></table>"
+    )
     monkeypatch.setattr("nanoblock_scraper.parse_products", lambda html: [])
 
     def fail(*args, **kwargs):
@@ -319,3 +325,74 @@ def test_main_with_output_skips_google_sheets(monkeypatch, tmp_path, capsys) -> 
 
     assert out.exists()
     assert "skipping the Google Sheets update" in capsys.readouterr().out
+
+
+class _ArchiveResponse:
+    def __init__(self, status_code, text="", headers=None, url="") -> None:
+        self.status_code = status_code
+        self.ok = status_code < 400
+        self.text = text
+        self.headers = headers or {}
+        self.url = url
+
+
+def test_fetch_page_archive_retries_on_429_and_logs_snapshot_date(
+    monkeypatch, capsys
+) -> None:
+    html = '<table class="roundy"><tr><td>x</td></tr></table>'
+    responses = iter(
+        [
+            _ArchiveResponse(429, headers={"Retry-After": "2"}),
+            _ArchiveResponse(
+                200, html, url="https://web.archive.org/web/20250102030405id_/x"
+            ),
+        ]
+    )
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        scraper_module.requests, "get", lambda url, **kwargs: next(responses)
+    )
+    monkeypatch.setattr(scraper_module.time, "sleep", sleeps.append)
+
+    assert fetch_page_archive("https://example.com/wiki/X") == html
+    assert sleeps == [2]
+    assert "snapshot date: 2025-01-02" in capsys.readouterr().out
+
+
+def test_fetch_page_archive_gives_up_after_bounded_attempts(monkeypatch) -> None:
+    calls: list[str] = []
+
+    def fake_get(url, **kwargs):
+        calls.append(url)
+        return _ArchiveResponse(429)
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(scraper_module.requests, "get", fake_get)
+    monkeypatch.setattr(scraper_module.time, "sleep", sleeps.append)
+
+    assert fetch_page_archive("https://example.com/wiki/X") is None
+    assert len(calls) == scraper_module.WAYBACK_ATTEMPTS
+    assert sleeps == [5, 15]
+
+
+def test_fetch_page_passes_challenge_timeout_to_browser(monkeypatch) -> None:
+    _blocked(monkeypatch)
+    monkeypatch.setattr(scraper_module, "fetch_page_impersonated", lambda url: None)
+    monkeypatch.setattr(scraper_module, "fetch_page_api", lambda url: None)
+    seen = {}
+
+    def fake_browser(url, **kwargs):
+        seen.update(kwargs)
+        return "page"
+
+    monkeypatch.setattr(scraper_module, "fetch_page_browser", fake_browser)
+
+    fetch_page("https://example.com/wiki/X", challenge_timeout=120)
+
+    assert seen["timeout_ms"] == 120_000
+
+
+def test_build_parser_accepts_challenge_timeout() -> None:
+    args = build_parser().parse_args(["--challenge-timeout", "90"])
+
+    assert args.challenge_timeout == 90

@@ -88,7 +88,7 @@ Bulbapedia is behind Cloudflare and blocks GitHub-hosted runners, so the recomme
 6. Test the wrapper: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_sync.ps1`. It appends timestamped output to `logs\sync-YYYY-MM.log` and returns the scraper's exit code.
 7. In Task Scheduler, create a task:
    - Trigger: Monthly, day 1, 9:00 AM.
-   - Action: program `powershell.exe`, arguments `-NoProfile -ExecutionPolicy Bypass -File C:\Tools\nanoblock-tracker\scripts\run_sync.ps1`, "Start in" `C:\Tools\nanoblock-tracker`.
+   - Action: program `powershell.exe`, arguments `-NoProfile -ExecutionPolicy Bypass -File C:\Tools\nanoblock-tracker\scripts\run_sync.ps1`, "Start in" `C:\Tools\nanoblock-tracker`. The wrapper runs the scraper with `--challenge-timeout 120`, giving the browser fallback two minutes to clear a Cloudflare challenge; edit `run_sync.ps1` to change it.
    - Settings: run as soon as possible after a missed start, start only if a network connection is available, and retry on failure (e.g. every 30 minutes, up to 3 times).
 8. Right-click the task and choose Run, then check the log and the sheet.
 
@@ -100,8 +100,8 @@ Bulbapedia's Cloudflare returns 403 to plain `requests`. On a 403 the scraper tr
 
 1. A Chrome-impersonating HTTP client (`curl_cffi`).
 2. The MediaWiki API.
-3. A visible Chrome/Chromium window (Playwright). It waits up to 20 seconds for the page to load and uses a persistent `.browser-profile/` folder so Cloudflare clearance is reused between runs. If a checkbox challenge appears, click it in that window.
-4. The latest Wayback Machine copy of the page, which may be slightly stale.
+3. A visible Chrome/Chromium window (Playwright). It waits up to 20 seconds (override with `--challenge-timeout SECONDS`) for the page to load and uses a persistent `.browser-profile/` folder so Cloudflare clearance is reused between runs. If a checkbox challenge appears, click it in that window.
+4. The latest Wayback Machine copy of the page, which may be slightly stale. It retries up to 3 times on HTTP 429/5xx (honouring `Retry-After`, otherwise waiting 5s then 15s) and logs the snapshot date.
 
 ## GitHub Actions sync (manual)
 

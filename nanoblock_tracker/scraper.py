@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import re
+import time
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -25,6 +26,11 @@ USER_AGENT = (
 )
 
 BROWSER_TIMEOUT_MS = 20_000
+WAYBACK_ATTEMPTS = 3
+WAYBACK_BACKOFF_SECONDS = (5, 15)
+WAYBACK_MAX_RETRY_AFTER_SECONDS = 60
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+WAYBACK_TIMESTAMP_RE = re.compile(r"/web/(\d{4})(\d{2})(\d{2})")
 BROWSER_PROFILE_DIR = Path(".browser-profile")
 WAYBACK_URL = "https://web.archive.org/web/2id_/"
 CONTENT_SELECTOR = "table.roundy"
@@ -47,7 +53,11 @@ def _launch_context(playwright, headless: bool):
         return playwright.chromium.launch_persistent_context(**options)
 
 
-def fetch_page_browser(url: str = DEFAULT_URL, headless: bool = False) -> str:
+def fetch_page_browser(
+    url: str = DEFAULT_URL,
+    headless: bool = False,
+    timeout_ms: int = BROWSER_TIMEOUT_MS,
+) -> str:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as playwright:
@@ -57,11 +67,11 @@ def fetch_page_browser(url: str = DEFAULT_URL, headless: bool = False) -> str:
                 "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
             )
             page = context.pages[0] if context.pages else context.new_page()
-            page.goto(url, timeout=BROWSER_TIMEOUT_MS)
+            page.goto(url, timeout=timeout_ms)
             # A persistent profile keeps Cloudflare clearance cookies between
             # runs; if a checkbox challenge appears, solve it in the window.
             page.wait_for_selector(
-                CONTENT_SELECTOR, state="attached", timeout=BROWSER_TIMEOUT_MS
+                CONTENT_SELECTOR, state="attached", timeout=timeout_ms
             )
             return page.content()
         finally:
@@ -93,21 +103,50 @@ def fetch_page_impersonated(url: str = DEFAULT_URL) -> str | None:
     return response.text
 
 
+def _retry_delay(response, attempt: int) -> float:
+    retry_after = response.headers.get("Retry-After", "")
+    if retry_after.isdigit():
+        return min(int(retry_after), WAYBACK_MAX_RETRY_AFTER_SECONDS)
+    return WAYBACK_BACKOFF_SECONDS[min(attempt, len(WAYBACK_BACKOFF_SECONDS) - 1)]
+
+
+def _snapshot_date(response) -> str | None:
+    match = WAYBACK_TIMESTAMP_RE.search(str(getattr(response, "url", "")))
+    if not match:
+        return None
+    return "-".join(match.groups())
+
+
 def fetch_page_archive(url: str = DEFAULT_URL) -> str | None:
-    try:
-        response = requests.get(
-            WAYBACK_URL + url, headers={"User-Agent": USER_AGENT}, timeout=60
-        )
-    except requests.RequestException as error:
-        _log(f"Wayback Machine request failed: {error}")
-        return None
-    if not response.ok:
-        _log(f"Wayback Machine got HTTP {response.status_code}")
-        return None
-    if not _has_products_table(response.text):
-        _log("Wayback Machine response had no products table")
-        return None
-    return response.text
+    for attempt in range(WAYBACK_ATTEMPTS):
+        try:
+            response = requests.get(
+                WAYBACK_URL + url, headers={"User-Agent": USER_AGENT}, timeout=60
+            )
+        except requests.RequestException as error:
+            _log(f"Wayback Machine request failed: {error}")
+            return None
+        if response.status_code in RETRYABLE_STATUS_CODES:
+            if attempt + 1 == WAYBACK_ATTEMPTS:
+                _log(f"Wayback Machine got HTTP {response.status_code}; giving up")
+                return None
+            delay = _retry_delay(response, attempt)
+            _log(
+                f"Wayback Machine got HTTP {response.status_code}; "
+                f"retrying in {delay:g}s (attempt {attempt + 2}/{WAYBACK_ATTEMPTS})"
+            )
+            time.sleep(delay)
+            continue
+        if not response.ok:
+            _log(f"Wayback Machine got HTTP {response.status_code}")
+            return None
+        if not _has_products_table(response.text):
+            _log("Wayback Machine response had no products table")
+            return None
+        snapshot = _snapshot_date(response)
+        _log(f"Wayback Machine snapshot date: {snapshot or 'unknown'}")
+        return response.text
+    return None
 
 
 def fetch_page_api(url: str = DEFAULT_URL) -> str | None:
@@ -142,15 +181,17 @@ def fetch_page_api(url: str = DEFAULT_URL) -> str | None:
         return None
 
 
-def _fetch_page_browser_logged(url: str) -> str | None:
+def _fetch_page_browser_logged(
+    url: str, timeout_ms: int = BROWSER_TIMEOUT_MS
+) -> str | None:
     try:
-        return fetch_page_browser(url)
+        return fetch_page_browser(url, timeout_ms=timeout_ms)
     except PlaywrightError as error:
         _log(f"browser failed: {str(error).splitlines()[0]}")
         return None
 
 
-def fetch_page(url: str = DEFAULT_URL) -> str:
+def fetch_page(url: str = DEFAULT_URL, challenge_timeout: float | None = None) -> str:
     response = requests.get(
         url,
         headers={"User-Agent": USER_AGENT},
@@ -161,10 +202,13 @@ def fetch_page(url: str = DEFAULT_URL) -> str:
         return response.text
 
     _log("direct request blocked (HTTP 403); trying fallbacks")
+    timeout_ms = (
+        int(challenge_timeout * 1000) if challenge_timeout else BROWSER_TIMEOUT_MS
+    )
     methods = (
         ("impersonated client", fetch_page_impersonated),
         ("MediaWiki API", fetch_page_api),
-        ("browser", _fetch_page_browser_logged),
+        ("browser", lambda u: _fetch_page_browser_logged(u, timeout_ms=timeout_ms)),
         ("Wayback Machine copy (may be stale)", fetch_page_archive),
     )
     for name, fetch in methods:

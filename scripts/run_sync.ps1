@@ -57,7 +57,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-& $python (Join-Path $repo "nanoblock_scraper.py") --env-file $envFile 2>&1 |
+& $python (Join-Path $repo "nanoblock_scraper.py") --env-file $envFile --challenge-timeout 120 2>&1 |
     ForEach-Object { Write-Log "$_" }
 $exitCode = $LASTEXITCODE
 $ErrorActionPreference = $previous
