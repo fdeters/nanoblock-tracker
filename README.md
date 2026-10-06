@@ -84,7 +84,7 @@ Bulbapedia is behind Cloudflare and blocks GitHub-hosted runners, so the recomme
    ```
 
 4. Create `.env` in the repo root with `GOOGLE_SHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS` (absolute path to the service-account JSON, kept outside the repo or in the git-ignored `credentials/` folder) and optionally `GOOGLE_SHEET_NAME`. Share the sheet with the service account's email as an editor.
-5. Verify the scrape works from your PC without updating the sheet: `.venv\Scripts\python nanoblock_scraper.py --sheet-id "" --output test.csv`. Bulbapedia's Cloudflare returns 403 to plain `requests`, so on a 403 the scraper automatically tries, in order: a Chrome-impersonating HTTP client (`curl_cffi`), the MediaWiki API, a visible Chrome/Chromium window (Playwright, using a persistent `.browser-profile/` so Cloudflare clearance is reused; if a checkbox challenge appears, click it within 3 minutes), and finally the latest Wayback Machine copy of the page (which may be slightly stale).
+5. Verify the scrape works from your PC without updating the sheet: `.venv\Scripts\python nanoblock_scraper.py --sheet-id "" --output test.csv`. See [Blocked requests](#blocked-requests-cloudflare) if it fails.
 6. Test the wrapper: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_sync.ps1`. It appends timestamped output to `logs\sync-YYYY-MM.log` and returns the scraper's exit code.
 7. In Task Scheduler, create a task:
    - Trigger: Monthly, day 1, 9:00 AM.
@@ -93,6 +93,15 @@ Bulbapedia is behind Cloudflare and blocks GitHub-hosted runners, so the recomme
 8. Right-click the task and choose Run, then check the log and the sheet.
 
 Each run of `run_sync.ps1` first runs `git pull --ff-only` and reinstalls dependencies only if `requirements.txt` changed since the last successful install (tracked in `.venv\requirements.sha256`). If either step fails, the failure is logged and the sync continues with the current checkout. Keep the clone free of local edits so the fast-forward pull succeeds.
+
+## Blocked requests (Cloudflare)
+
+Bulbapedia's Cloudflare returns 403 to plain `requests`. On a 403 the scraper tries these fallbacks in order and uses the first that works:
+
+1. A Chrome-impersonating HTTP client (`curl_cffi`).
+2. The MediaWiki API.
+3. A visible Chrome/Chromium window (Playwright). It waits up to 20 seconds for the page to load and uses a persistent `.browser-profile/` folder so Cloudflare clearance is reused between runs. If a checkbox challenge appears, click it in that window.
+4. The latest Wayback Machine copy of the page, which may be slightly stale.
 
 ## GitHub Actions sync (manual)
 

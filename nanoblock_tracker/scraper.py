@@ -22,8 +22,7 @@ USER_AGENT = (
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
 
-BROWSER_TIMEOUT_MS = 60_000
-CHALLENGE_WAIT_MS = 180_000
+BROWSER_TIMEOUT_MS = 20_000
 BROWSER_PROFILE_DIR = Path(".browser-profile")
 WAYBACK_URL = "https://web.archive.org/web/2id_/"
 CONTENT_SELECTOR = "table.roundy"
@@ -59,7 +58,7 @@ def fetch_page_browser(url: str = DEFAULT_URL, headless: bool = False) -> str:
             # A persistent profile keeps Cloudflare clearance cookies between
             # runs; if a checkbox challenge appears, solve it in the window.
             page.wait_for_selector(
-                CONTENT_SELECTOR, state="attached", timeout=CHALLENGE_WAIT_MS
+                CONTENT_SELECTOR, state="attached", timeout=BROWSER_TIMEOUT_MS
             )
             return page.content()
         finally:
