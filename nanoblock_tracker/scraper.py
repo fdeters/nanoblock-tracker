@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import re
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -20,28 +21,67 @@ USER_AGENT = (
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
 
-CHALLENGE_TITLE = "Just a moment..."
 BROWSER_TIMEOUT_MS = 60_000
+
+
+BROWSER_ARGS = ["--disable-blink-features=AutomationControlled"]
+CONTENT_SELECTOR = "table.roundy"
+
+
+def _launch_browser(playwright, headless: bool):
+    from playwright.sync_api import Error as PlaywrightError
+
+    try:
+        return playwright.chromium.launch(
+            channel="chrome", headless=headless, args=BROWSER_ARGS
+        )
+    except PlaywrightError:
+        return playwright.chromium.launch(headless=headless, args=BROWSER_ARGS)
 
 
 def fetch_page_browser(url: str = DEFAULT_URL, headless: bool = False) -> str:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=headless)
+        browser = _launch_browser(playwright, headless)
         try:
-            page = browser.new_page(user_agent=USER_AGENT)
-            response = page.goto(url, timeout=BROWSER_TIMEOUT_MS)
-            if page.title() == CHALLENGE_TITLE or (response and response.status == 403):
-                page.wait_for_function(
-                    "title => document.title !== title",
-                    arg=CHALLENGE_TITLE,
-                    timeout=BROWSER_TIMEOUT_MS,
-                )
-                page.wait_for_load_state("load")
+            context = browser.new_context(user_agent=USER_AGENT)
+            context.add_init_script(
+                "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+            )
+            page = context.new_page()
+            page.goto(url, timeout=BROWSER_TIMEOUT_MS)
+            page.wait_for_selector(
+                CONTENT_SELECTOR, state="attached", timeout=BROWSER_TIMEOUT_MS
+            )
             return page.content()
         finally:
             browser.close()
+
+
+def fetch_page_api(url: str = DEFAULT_URL) -> str | None:
+    parsed = urlparse(url)
+    if not parsed.path.startswith("/wiki/"):
+        return None
+    api_url = f"{parsed.scheme}://{parsed.netloc}/w/api.php"
+    response = requests.get(
+        api_url,
+        params={
+            "action": "parse",
+            "page": unquote(parsed.path[len("/wiki/") :]),
+            "prop": "text",
+            "format": "json",
+            "formatversion": "2",
+        },
+        headers={"User-Agent": USER_AGENT},
+        timeout=30,
+    )
+    if not response.ok:
+        return None
+    try:
+        return response.json()["parse"]["text"]
+    except (ValueError, KeyError, TypeError):
+        return None
 
 
 def fetch_page(url: str = DEFAULT_URL) -> str:
@@ -51,6 +91,9 @@ def fetch_page(url: str = DEFAULT_URL) -> str:
         timeout=30,
     )
     if response.status_code == 403:
+        html = fetch_page_api(url)
+        if html:
+            return html
         return fetch_page_browser(url)
     response.raise_for_status()
     return response.text

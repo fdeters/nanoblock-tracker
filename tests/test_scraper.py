@@ -68,6 +68,37 @@ def test_fetch_page_falls_back_to_browser_on_403(monkeypatch) -> None:
     assert fetch_page("https://example.com") == "browser:https://example.com"
 
 
+def test_fetch_page_falls_back_to_api_on_403(monkeypatch) -> None:
+    class Blocked:
+        status_code = 403
+
+    class ApiResponse:
+        ok = True
+
+        @staticmethod
+        def json() -> dict:
+            return {"parse": {"text": "<table class='roundy'></table>"}}
+
+    calls = []
+
+    def fake_get(url, **kwargs):
+        calls.append((url, kwargs.get("params")))
+        return ApiResponse() if "api.php" in url else Blocked()
+
+    monkeypatch.setattr(scraper_module.requests, "get", fake_get)
+    monkeypatch.setattr(
+        scraper_module,
+        "fetch_page_browser",
+        lambda url: (_ for _ in ()).throw(AssertionError("no browser")),
+    )
+
+    html = fetch_page("https://example.com/wiki/Pok%C3%A9mon_Nanoblocks")
+
+    assert html == "<table class='roundy'></table>"
+    assert calls[1][0] == "https://example.com/w/api.php"
+    assert calls[1][1]["page"] == "Pokémon_Nanoblocks"
+
+
 def test_parse_products_filters_and_normalizes() -> None:
     products = parse_products(SAMPLE_HTML)
 
