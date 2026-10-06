@@ -80,10 +80,11 @@ Bulbapedia is behind Cloudflare and blocks GitHub-hosted runners, so the recomme
    cd C:\Tools\nanoblock-tracker
    py -3.11 -m venv .venv
    .venv\Scripts\pip install -r requirements.txt
+   .venv\Scripts\python -m playwright install chromium
    ```
 
 4. Create `.env` in the repo root with `GOOGLE_SHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS` (absolute path to the service-account JSON, kept outside the repo or in the git-ignored `credentials/` folder) and optionally `GOOGLE_SHEET_NAME`. Share the sheet with the service account's email as an editor.
-5. Verify the scrape works from your PC without updating the sheet: `.venv\Scripts\python nanoblock_scraper.py --sheet-id "" --output test.csv`. If you get a 403, Cloudflare is challenging `requests`; a browser-based fetcher would be needed.
+5. Verify the scrape works from your PC without updating the sheet: `.venv\Scripts\python nanoblock_scraper.py --sheet-id "" --output test.csv`. Bulbapedia's Cloudflare returns 403 to plain `requests`, so the scraper automatically retries with a visible Chromium window (Playwright) and waits for the challenge to clear.
 6. Test the wrapper: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_sync.ps1`. It appends timestamped output to `logs\sync-YYYY-MM.log` and returns the scraper's exit code.
 7. In Task Scheduler, create a task:
    - Trigger: Monthly, day 1, 9:00 AM.

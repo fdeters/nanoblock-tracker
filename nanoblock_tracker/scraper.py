@@ -20,6 +20,29 @@ USER_AGENT = (
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
 
+CHALLENGE_TITLE = "Just a moment..."
+BROWSER_TIMEOUT_MS = 60_000
+
+
+def fetch_page_browser(url: str = DEFAULT_URL, headless: bool = False) -> str:
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=headless)
+        try:
+            page = browser.new_page(user_agent=USER_AGENT)
+            response = page.goto(url, timeout=BROWSER_TIMEOUT_MS)
+            if page.title() == CHALLENGE_TITLE or (response and response.status == 403):
+                page.wait_for_function(
+                    "title => document.title !== title",
+                    arg=CHALLENGE_TITLE,
+                    timeout=BROWSER_TIMEOUT_MS,
+                )
+                page.wait_for_load_state("load")
+            return page.content()
+        finally:
+            browser.close()
+
 
 def fetch_page(url: str = DEFAULT_URL) -> str:
     response = requests.get(
@@ -27,6 +50,8 @@ def fetch_page(url: str = DEFAULT_URL) -> str:
         headers={"User-Agent": USER_AGENT},
         timeout=30,
     )
+    if response.status_code == 403:
+        return fetch_page_browser(url)
     response.raise_for_status()
     return response.text
 
