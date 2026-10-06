@@ -10,6 +10,7 @@ from nanoblock_tracker.scraper import (
     build_summary,
     export_products,
     fetch_page,
+    fetch_page_archive,
     merge_products,
     parse_products,
 )
@@ -131,6 +132,31 @@ def test_fetch_page_falls_back_to_archive_when_browser_fails(monkeypatch) -> Non
     monkeypatch.setattr(scraper_module, "fetch_page_archive", lambda url: "archived")
 
     assert fetch_page("https://example.com/wiki/X") == "archived"
+
+
+def test_fetch_page_archive_accepts_real_html(monkeypatch) -> None:
+    class Archived:
+        ok = True
+        status_code = 200
+        text = '<html><table class="roundy"><tr><td>x</td></tr></table></html>'
+
+    monkeypatch.setattr(
+        scraper_module.requests, "get", lambda url, **kwargs: Archived()
+    )
+
+    assert fetch_page_archive("https://example.com/wiki/X") == Archived.text
+
+
+def test_fetch_page_logs_each_method(monkeypatch, capsys) -> None:
+    _blocked(monkeypatch)
+    monkeypatch.setattr(scraper_module, "fetch_page_impersonated", lambda url: None)
+    monkeypatch.setattr(scraper_module, "fetch_page_api", lambda url: None)
+    monkeypatch.setattr(scraper_module, "fetch_page_browser", lambda url: "page")
+
+    assert fetch_page("https://example.com/wiki/X") == "page"
+    out = capsys.readouterr().out
+    assert "impersonated client did not return a page" in out
+    assert "browser succeeded" in out
 
 
 def test_parse_products_filters_and_normalizes() -> None:

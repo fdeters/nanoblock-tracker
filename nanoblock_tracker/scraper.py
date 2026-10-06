@@ -65,14 +65,27 @@ def fetch_page_browser(url: str = DEFAULT_URL, headless: bool = False) -> str:
             context.close()
 
 
+def _log(message: str) -> None:
+    print(f"[fetch] {message}")
+
+
+def _has_products_table(html: str) -> bool:
+    return BeautifulSoup(html, "html.parser").select_one(CONTENT_SELECTOR) is not None
+
+
 def fetch_page_impersonated(url: str = DEFAULT_URL) -> str | None:
     from curl_cffi import requests as curl_requests
 
     try:
         response = curl_requests.get(url, impersonate="chrome", timeout=30)
-    except curl_requests.RequestsError:
+    except curl_requests.RequestsError as error:
+        _log(f"impersonated client failed: {error}")
         return None
-    if response.status_code != 200 or CONTENT_SELECTOR not in response.text:
+    if response.status_code != 200:
+        _log(f"impersonated client got HTTP {response.status_code}")
+        return None
+    if not _has_products_table(response.text):
+        _log("impersonated client response had no products table")
         return None
     return response.text
 
@@ -82,9 +95,14 @@ def fetch_page_archive(url: str = DEFAULT_URL) -> str | None:
         response = requests.get(
             WAYBACK_URL + url, headers={"User-Agent": USER_AGENT}, timeout=60
         )
-    except requests.RequestException:
+    except requests.RequestException as error:
+        _log(f"Wayback Machine request failed: {error}")
         return None
-    if not response.ok or CONTENT_SELECTOR not in response.text:
+    if not response.ok:
+        _log(f"Wayback Machine got HTTP {response.status_code}")
+        return None
+    if not _has_products_table(response.text):
+        _log("Wayback Machine response had no products table")
         return None
     return response.text
 
@@ -92,25 +110,40 @@ def fetch_page_archive(url: str = DEFAULT_URL) -> str | None:
 def fetch_page_api(url: str = DEFAULT_URL) -> str | None:
     parsed = urlparse(url)
     if not parsed.path.startswith("/wiki/"):
+        _log("MediaWiki API skipped: not a /wiki/ URL")
         return None
     api_url = f"{parsed.scheme}://{parsed.netloc}/w/api.php"
-    response = requests.get(
-        api_url,
-        params={
-            "action": "parse",
-            "page": unquote(parsed.path[len("/wiki/") :]),
-            "prop": "text",
-            "format": "json",
-            "formatversion": "2",
-        },
-        headers={"User-Agent": USER_AGENT},
-        timeout=30,
-    )
+    try:
+        response = requests.get(
+            api_url,
+            params={
+                "action": "parse",
+                "page": unquote(parsed.path[len("/wiki/") :]),
+                "prop": "text",
+                "format": "json",
+                "formatversion": "2",
+            },
+            headers={"User-Agent": USER_AGENT},
+            timeout=30,
+        )
+    except requests.RequestException as error:
+        _log(f"MediaWiki API request failed: {error}")
+        return None
     if not response.ok:
+        _log(f"MediaWiki API got HTTP {response.status_code}")
         return None
     try:
         return response.json()["parse"]["text"]
     except (ValueError, KeyError, TypeError):
+        _log("MediaWiki API response had no page text")
+        return None
+
+
+def _fetch_page_browser_logged(url: str) -> str | None:
+    try:
+        return fetch_page_browser(url)
+    except PlaywrightError as error:
+        _log(f"browser failed: {str(error).splitlines()[0]}")
         return None
 
 
@@ -124,22 +157,21 @@ def fetch_page(url: str = DEFAULT_URL) -> str:
         response.raise_for_status()
         return response.text
 
-    for fetch in (fetch_page_impersonated, fetch_page_api):
+    _log("direct request blocked (HTTP 403); trying fallbacks")
+    methods = (
+        ("impersonated client", fetch_page_impersonated),
+        ("MediaWiki API", fetch_page_api),
+        ("browser", _fetch_page_browser_logged),
+        ("Wayback Machine copy (may be stale)", fetch_page_archive),
+    )
+    for name, fetch in methods:
+        _log(f"trying {name}")
         html = fetch(url)
         if html:
+            _log(f"{name} succeeded")
             return html
-
-    browser_error: Exception | None = None
-    try:
-        return fetch_page_browser(url)
-    except PlaywrightError as error:
-        browser_error = error
-
-    html = fetch_page_archive(url)
-    if html:
-        print("Warning: live page blocked; using the latest Wayback Machine copy.")
-        return html
-    raise RuntimeError(f"All fetch methods were blocked: {browser_error}")
+        _log(f"{name} did not return a page")
+    raise RuntimeError("All fetch methods were blocked; see [fetch] messages above")
 
 
 def parse_products(html: str) -> list[dict]:
