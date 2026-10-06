@@ -39,16 +39,28 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--url", default=DEFAULT_URL, help="Source page URL")
     parser.add_argument(
         "--output",
-        default="nanoblock_products.csv",
-        help="Where to write the local CSV export",
+        help=(
+            "Write a local CSV export instead of updating Google Sheets. "
+            "A bare file name is written to the output/ folder"
+        ),
+    )
+    parser.add_argument(
+        "--challenge-timeout",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "Seconds the browser fallback waits for the Cloudflare challenge "
+            "to clear (default: 20). Use a larger value for unattended runs"
+        ),
     )
     parser.add_argument(
         "--sheet-id",
         help="Google Sheets spreadsheet ID to update",
     )
     parser.add_argument(
-        "--sheet-name",
-        help="Worksheet name to update",
+        "--worksheet-name",
+        help="Worksheet (tab) name to update; defaults to GOOGLE_WORKSHEET_NAME or 'pokemon'",
     )
     parser.add_argument(
         "--credentials",

@@ -9,3 +9,5 @@ credentials/*
 
 !.gitkeep
 logs/
+.browser-profile/
+output/
