@@ -1,5 +1,6 @@
 import csv
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -13,6 +14,7 @@ from nanoblock_tracker.scraper import (
     fetch_page_archive,
     merge_products,
     parse_products,
+    resolve_output_path,
 )
 
 SAMPLE_HTML = """
@@ -176,29 +178,29 @@ def test_parse_products_filters_and_normalizes() -> None:
     assert products[2]["Variant"] == ""
 
 
-def test_build_parser_leaves_sheet_name_unset_until_explicitly_provided(
+def test_build_parser_leaves_worksheet_name_unset_until_explicitly_provided(
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("GOOGLE_SHEET_NAME", "Env Sheet")
+    monkeypatch.setenv("GOOGLE_WORKSHEET_NAME", "Env Sheet")
 
     parser = build_parser()
     args = parser.parse_args([])
 
-    assert args.sheet_name is None
+    assert args.worksheet_name is None
 
 
 def test_resolve_config_value_falls_back_to_default(
     monkeypatch,
 ) -> None:
-    monkeypatch.delenv("GOOGLE_SHEET_NAME", raising=False)
+    monkeypatch.delenv("GOOGLE_WORKSHEET_NAME", raising=False)
 
     assert (
         resolve_config_value(
             None,
-            "GOOGLE_SHEET_NAME",
-            "Sheet1",
+            "GOOGLE_WORKSHEET_NAME",
+            "pokemon",
         )
-        == "Sheet1"
+        == "pokemon"
     )
 
 
@@ -290,3 +292,30 @@ def test_export_products_writes_expected_csv(tmp_path) -> None:
 
     assert rows[0]["Product Code"] == "NBPM_001"
     assert rows[0]["Product Name"] == "Pikachu"
+
+
+def test_resolve_output_path_puts_bare_names_in_output_folder() -> None:
+    assert resolve_output_path("test.csv") == Path("output") / "test.csv"
+    assert resolve_output_path(None) == Path("output") / "nanoblock_products.csv"
+    assert resolve_output_path("exports/a.csv") == Path("exports") / "a.csv"
+
+
+def test_main_with_output_skips_google_sheets(monkeypatch, tmp_path, capsys) -> None:
+    out = tmp_path / "test.csv"
+    monkeypatch.setattr("nanoblock_scraper.fetch_page", lambda url: "<table></table>")
+    monkeypatch.setattr("nanoblock_scraper.parse_products", lambda html: [])
+
+    def fail(*args, **kwargs):
+        raise AssertionError("Google Sheets should not be touched")
+
+    monkeypatch.setattr("nanoblock_scraper.read_google_sheet_rows", fail)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["nanoblock_scraper.py", "--sheet-id", "sheet-id", "--output", str(out)],
+    )
+
+    main()
+
+    assert out.exists()
+    assert "skipping the Google Sheets update" in capsys.readouterr().out

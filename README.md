@@ -23,7 +23,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 python nanoblock_scraper.py
 ```
 
-This writes a file named `nanoblock_products.csv` in the project root.
+This writes `output/nanoblock_products.csv` (the `output/` folder is git-ignored). Passing `--output name.csv` also writes to `output/` (use a path with a folder to write elsewhere) and skips the Google Sheets update.
 
 ## Sync to Google Sheets
 
@@ -36,7 +36,7 @@ Example `.env`:
 ```env
 GOOGLE_SHEET_ID=your_spreadsheet_id
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
-GOOGLE_SHEET_NAME=Sheet1
+GOOGLE_WORKSHEET_NAME=pokemon
 ```
 
 Then run:
@@ -83,7 +83,7 @@ Bulbapedia is behind Cloudflare and blocks GitHub-hosted runners, so the recomme
    .venv\Scripts\python -m playwright install chromium
    ```
 
-4. Create `.env` in the repo root with `GOOGLE_SHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS` (absolute path to the service-account JSON, kept outside the repo or in the git-ignored `credentials/` folder) and optionally `GOOGLE_SHEET_NAME`. Share the sheet with the service account's email as an editor.
+4. Create `.env` in the repo root with `GOOGLE_SHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS` (absolute path to the service-account JSON, kept outside the repo or in the git-ignored `credentials/` folder) and optionally `GOOGLE_WORKSHEET_NAME`. Share the sheet with the service account's email as an editor.
 5. Verify the scrape works from your PC without updating the sheet: `.venv\Scripts\python nanoblock_scraper.py --sheet-id "" --output test.csv`. See [Blocked requests](#blocked-requests-cloudflare) if it fails.
 6. Test the wrapper: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_sync.ps1`. It appends timestamped output to `logs\sync-YYYY-MM.log` and returns the scraper's exit code.
 7. In Task Scheduler, create a task:
@@ -115,8 +115,8 @@ In GitHub, add these repository secrets or variables:
   - The full JSON contents of your Google service-account credentials file.
 - Secret: `GOOGLE_SHEET_ID`
   - The Google Sheets spreadsheet ID.
-- Variable (optional): `GOOGLE_SHEET_NAME`
-  - The worksheet/tab name to update. If omitted, the script falls back to `Sheet1`.
+- Variable (optional): `GOOGLE_WORKSHEET_NAME`
+  - The worksheet/tab name to update. If omitted, the script falls back to `pokemon`.
 
 The workflow publishes the scraper output to the GitHub Actions job summary (`$GITHUB_STEP_SUMMARY`) so each run includes a built-in sync status message in the Actions UI.
 
@@ -126,7 +126,7 @@ The workflow publishes the scraper output to the GitHub Actions job summary (`$G
 2. In your GitHub repository, open Settings → Secrets and variables → Actions.
 3. Add a new repository secret named `GOOGLE_CREDENTIALS_JSON` and paste the entire JSON contents as the value.
 4. Add another secret named `GOOGLE_SHEET_ID` with the spreadsheet ID.
-5. Optional: add a repository variable named `GOOGLE_SHEET_NAME` if your sheet is not named `Sheet1`.
+5. Optional: add a repository variable named `GOOGLE_WORKSHEET_NAME` if your worksheet (tab) is not named `pokemon`.
 
 > Keep the credentials JSON in GitHub Secrets, not in the repository itself. The workflow writes it to a temporary file at runtime and uses it for the sync. The same JSON payload can also be supplied directly when running locally with `--credentials`.
 

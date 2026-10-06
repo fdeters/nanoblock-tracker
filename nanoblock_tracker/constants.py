@@ -3,6 +3,9 @@ from __future__ import annotations
 import re
 
 DEFAULT_URL = "https://bulbapedia.bulbagarden.net/wiki/" "Pok%C3%A9mon_Nanoblocks"
+DEFAULT_WORKSHEET_NAME = "pokemon"
+DEFAULT_OUTPUT_DIR = "output"
+DEFAULT_OUTPUT_NAME = "nanoblock_products.csv"
 FIELDNAMES = [
     "Product Name",
     "Product Code",

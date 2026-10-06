@@ -28,7 +28,7 @@ jobs:
         env:
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
-          GOOGLE_SHEET_NAME: ${{ vars.GOOGLE_SHEET_NAME }}
+          GOOGLE_WORKSHEET_NAME: ${{ vars.GOOGLE_WORKSHEET_NAME }}
         run: |
           set -euo pipefail
           if [ -z "$GOOGLE_SHEET_ID" ]; then
@@ -40,8 +40,8 @@ jobs:
             exit 1
           fi
 
-          GOOGLE_SHEET_NAME="${GOOGLE_SHEET_NAME:-Sheet1}"
-          xvfb-run -a python nanoblock_scraper.py --sheet-id "$GOOGLE_SHEET_ID" --credentials "$GOOGLE_CREDENTIALS_JSON" --sheet-name "$GOOGLE_SHEET_NAME" 2>&1 | tee sync-output.txt
+          GOOGLE_WORKSHEET_NAME="${GOOGLE_WORKSHEET_NAME:-pokemon}"
+          xvfb-run -a python nanoblock_scraper.py --sheet-id "$GOOGLE_SHEET_ID" --credentials "$GOOGLE_CREDENTIALS_JSON" --worksheet-name "$GOOGLE_WORKSHEET_NAME" 2>&1 | tee sync-output.txt
 
       - name: Publish sync summary
         if: always()

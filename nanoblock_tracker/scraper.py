@@ -10,6 +10,8 @@ from bs4 import BeautifulSoup
 from playwright.sync_api import Error as PlaywrightError
 
 from .constants import (
+    DEFAULT_OUTPUT_DIR,
+    DEFAULT_OUTPUT_NAME,
     DEFAULT_URL,
     FIELDNAMES,
     PARENTHETICAL_RE,
@@ -34,6 +36,7 @@ def _launch_context(playwright, headless: bool):
         "user_data_dir": str(BROWSER_PROFILE_DIR),
         "headless": headless,
         "args": BROWSER_ARGS,
+        "chromium_sandbox": True,
         "user_agent": USER_AGENT,
     }
     try:
@@ -229,11 +232,19 @@ def merge_products(
     ]
 
 
+def resolve_output_path(output_path: str | Path | None = None) -> Path:
+    output = Path(output_path) if output_path else Path(DEFAULT_OUTPUT_NAME)
+    if output.parent == Path("."):
+        output = Path(DEFAULT_OUTPUT_DIR) / output
+    return output
+
+
 def export_products(
     products: list[dict],
     output_path: str | Path | None = None,
 ) -> Path:
-    output = Path(output_path) if output_path else Path("nanoblock_products.csv")
+    output = resolve_output_path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
     with output.open("w", encoding="utf-8-sig", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=FIELDNAMES)
         writer.writeheader()

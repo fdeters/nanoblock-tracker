@@ -11,7 +11,7 @@ except ImportError:  # pragma: no cover - used when optional dependency is not i
     gspread = None
     Credentials = None
 
-from .constants import FIELDNAMES
+from .constants import DEFAULT_WORKSHEET_NAME, FIELDNAMES
 
 
 def build_credentials(credentials_value: str | None) -> Any:
@@ -45,13 +45,23 @@ def build_credentials(credentials_value: str | None) -> Any:
         raise RuntimeError(str(exc)) from exc
 
 
+def _describe_sheets_error(exc: Exception, worksheet_name: str) -> str:
+    not_found = getattr(gspread, "WorksheetNotFound", None)
+    if not_found is not None and isinstance(exc, not_found):
+        return (
+            f"Google Sheets sync failed: worksheet '{worksheet_name}' not found. "
+            "Set --worksheet-name or GOOGLE_WORKSHEET_NAME to the tab's name."
+        )
+    return f"Google Sheets sync failed: {exc}"
+
+
 def normalize_sheet_row(row: dict[str, Any]) -> dict[str, Any]:
     return {field: row.get(field, "") for field in FIELDNAMES}
 
 
 def read_google_sheet_rows(
     spreadsheet_id: str,
-    sheet_name: str = "Sheet1",
+    worksheet_name: str = DEFAULT_WORKSHEET_NAME,
     credentials_path: str | None = None,
 ) -> list[dict[str, Any]]:
     if gspread is None or Credentials is None:
@@ -63,9 +73,9 @@ def read_google_sheet_rows(
     try:
         credentials = build_credentials(credentials_path)
         client = gspread.authorize(credentials)
-        worksheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
+        worksheet = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
     except Exception as exc:  # pragma: no cover - defensive for runtime failures
-        raise RuntimeError(f"Google Sheets sync failed: {exc}") from exc
+        raise RuntimeError(_describe_sheets_error(exc, worksheet_name)) from exc
 
     rows = worksheet.get_all_records()
     return [normalize_sheet_row(row) for row in rows]
@@ -74,7 +84,7 @@ def read_google_sheet_rows(
 def append_google_sheet_rows(
     spreadsheet_id: str,
     products: list[dict[str, Any]],
-    sheet_name: str = "Sheet1",
+    worksheet_name: str = DEFAULT_WORKSHEET_NAME,
     credentials_path: str | None = None,
 ) -> int:
     if not products:
@@ -89,9 +99,9 @@ def append_google_sheet_rows(
     try:
         credentials = build_credentials(credentials_path)
         client = gspread.authorize(credentials)
-        worksheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
+        worksheet = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
     except Exception as exc:  # pragma: no cover - defensive for runtime failures
-        raise RuntimeError(f"Google Sheets sync failed: {exc}") from exc
+        raise RuntimeError(_describe_sheets_error(exc, worksheet_name)) from exc
 
     rows = [[product.get(field, "") for field in FIELDNAMES] for product in products]
     worksheet.append_rows(

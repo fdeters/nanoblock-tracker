@@ -61,8 +61,8 @@ def test_read_google_sheet_rows_surfaces_missing_worksheet_error(monkeypatch) ->
                 "Workbook",
                 (),
                 {
-                    "worksheet": lambda self, _sheet_name: (_ for _ in ()).throw(
-                        RuntimeError("Worksheet 'Sheet1' not found")
+                    "worksheet": lambda self, _worksheet_name: (_ for _ in ()).throw(
+                        RuntimeError("Worksheet 'pokemon' not found")
                     )
                 },
             )()
@@ -81,6 +81,6 @@ def test_read_google_sheet_rows_surfaces_missing_worksheet_error(monkeypatch) ->
     monkeypatch.setattr(sheets_module, "Credentials", DummyCredentials)
 
     with pytest.raises(RuntimeError, match="Google Sheets sync failed") as exc_info:
-        sheets_module.read_google_sheet_rows("sheet-id", "Sheet1", "{}")
+        sheets_module.read_google_sheet_rows("sheet-id", "pokemon", "{}")
 
-    assert "Worksheet 'Sheet1' not found" in str(exc_info.value)
+    assert "Worksheet 'pokemon' not found" in str(exc_info.value)
