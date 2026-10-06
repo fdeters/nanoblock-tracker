@@ -84,7 +84,7 @@ Bulbapedia is behind Cloudflare and blocks GitHub-hosted runners, so the recomme
    ```
 
 4. Create `.env` in the repo root with `GOOGLE_SHEET_ID`, `GOOGLE_APPLICATION_CREDENTIALS` (absolute path to the service-account JSON, kept outside the repo or in the git-ignored `credentials/` folder) and optionally `GOOGLE_SHEET_NAME`. Share the sheet with the service account's email as an editor.
-5. Verify the scrape works from your PC without updating the sheet: `.venv\Scripts\python nanoblock_scraper.py --sheet-id "" --output test.csv`. Bulbapedia's Cloudflare returns 403 to plain `requests`, so the scraper automatically retries with a visible Chromium window (Playwright) and waits for the challenge to clear.
+5. Verify the scrape works from your PC without updating the sheet: `.venv\Scripts\python nanoblock_scraper.py --sheet-id "" --output test.csv`. Bulbapedia's Cloudflare returns 403 to plain `requests`, so on a 403 the scraper automatically tries, in order: a Chrome-impersonating HTTP client (`curl_cffi`), the MediaWiki API, a visible Chrome/Chromium window (Playwright, using a persistent `.browser-profile/` so Cloudflare clearance is reused; if a checkbox challenge appears, click it within 3 minutes), and finally the latest Wayback Machine copy of the page (which may be slightly stale).
 6. Test the wrapper: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_sync.ps1`. It appends timestamped output to `logs\sync-YYYY-MM.log` and returns the scraper's exit code.
 7. In Task Scheduler, create a task:
    - Trigger: Monthly, day 1, 9:00 AM.
