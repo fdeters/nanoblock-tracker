@@ -11,6 +11,7 @@ from nanoblock_tracker import (
     parse_products,
     read_google_sheet_rows,
     resolve_config_value,
+    update_google_sheet_release_dates,
 )
 from nanoblock_tracker.constants import DEFAULT_WORKSHEET_NAME
 
@@ -59,6 +60,13 @@ def main() -> None:
                 worksheet_name,
                 credentials_path,
             )
+            updated_dates = update_google_sheet_release_dates(
+                sheet_id,
+                products,
+                existing_rows,
+                worksheet_name,
+                credentials_path,
+            )
             new_products = merge_products(products, existing_rows)
             appended = append_google_sheet_rows(
                 sheet_id,
@@ -69,9 +77,12 @@ def main() -> None:
         except (RuntimeError, FileNotFoundError) as exc:
             raise SystemExit(str(exc)) from exc
 
-        if appended:
+        if appended or updated_dates:
             print(f"Synced to worksheet '{worksheet_name}' of Google Sheet {sheet_id}.")
-            print(build_summary(new_products))
+            if appended:
+                print(build_summary(new_products))
+            if updated_dates:
+                print(f"Filled release dates for {updated_dates} existing product(s).")
         else:
             print(
                 f"No new products — worksheet '{worksheet_name}' is already up to date."
