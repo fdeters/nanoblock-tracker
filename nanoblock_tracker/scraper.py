@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import re
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
@@ -31,6 +32,14 @@ WAYBACK_BACKOFF_SECONDS = (5, 15)
 WAYBACK_MAX_RETRY_AFTER_SECONDS = 60
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 WAYBACK_TIMESTAMP_RE = re.compile(r"/web/(\d{4})(\d{2})(\d{2})")
+RELEASE_DATE_RE = re.compile(
+    r"\b(?:"
+    r"\d{4}-\d{1,2}-\d{1,2}|"
+    r"[A-Z][a-z]+ \d{1,2},? \d{4}|"
+    r"\d{1,2} [A-Z][a-z]+ \d{4}|"
+    r"[A-Z][a-z]+ \d{4}"
+    r")\b"
+)
 BROWSER_PROFILE_DIR = Path(".browser-profile")
 WAYBACK_URL = "https://web.archive.org/web/2id_/"
 CONTENT_SELECTOR = "table.roundy"
@@ -219,6 +228,30 @@ def fetch_page(url: str = DEFAULT_URL, challenge_timeout: float | None = None) -
     raise RuntimeError("All fetch methods were blocked; see [fetch] messages above")
 
 
+def _parse_release_date(value: str) -> str:
+    match = RELEASE_DATE_RE.search(value)
+    if not match:
+        return ""
+
+    for date_format in (
+        "%Y-%m-%d",
+        "%B %d, %Y",
+        "%B %d %Y",
+        "%d %B %Y",
+        "%B %Y",
+    ):
+        try:
+            return (
+                datetime.strptime(match.group(), date_format)
+                .replace(tzinfo=timezone.utc)
+                .date()
+                .isoformat()
+            )
+        except ValueError:
+            continue
+    return ""
+
+
 def parse_products(html: str) -> list[dict]:
     soup = BeautifulSoup(html, "html.parser")
     products: list[dict] = []
@@ -231,6 +264,7 @@ def parse_products(html: str) -> list[dict]:
 
             code = cells[0] if len(cells) > 0 else ""
             details = cells[1] if len(cells) > 1 else ""
+            release_date = _parse_release_date(cells[2]) if len(cells) > 2 else ""
             if not PRODUCT_CODE_RE.search(code):
                 continue
             if re.search(r"nanoblock\+", details, flags=re.IGNORECASE):
@@ -252,6 +286,7 @@ def parse_products(html: str) -> list[dict]:
                     "Product Name": name,
                     "Product Code": code,
                     "Variant": variant,
+                    "Release Date": release_date,
                     "Collected": "",
                     "Not interested": "",
                 }

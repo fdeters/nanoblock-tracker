@@ -6,7 +6,11 @@ from .scraper import (
     merge_products,
     parse_products,
 )
-from .sheets import append_google_sheet_rows, read_google_sheet_rows
+from .sheets import (
+    append_google_sheet_rows,
+    read_google_sheet_rows,
+    update_google_sheet_missing_data,
+)
 
 __all__ = [
     "append_google_sheet_rows",
@@ -19,4 +23,5 @@ __all__ = [
     "parse_products",
     "read_google_sheet_rows",
     "resolve_config_value",
+    "update_google_sheet_missing_data",
 ]

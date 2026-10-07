@@ -20,10 +20,10 @@ from nanoblock_tracker.scraper import (
 SAMPLE_HTML = """
 <table class="roundy">
   <tr><th>Code</th><th>Name</th></tr>
-  <tr><td>NBPM_001</td><td>Pokémon Center RS</td></tr>
-  <tr><td>NBPM_R01</td><td>Pokémon Series DX</td></tr>
+  <tr><td>NBPM_001</td><td>Pokémon Center RS</td><td>March 2015<br>January 2017</td></tr>
+  <tr><td>NBPM_R01</td><td>Pokémon Series DX</td><td>2016-08-12 00:00:00</td></tr>
   <tr><td>NBPM_036</td><td>20th Anniversary ( )</td></tr>
-  <tr><td>NBPM_999</td><td>Nanoblock+ Set</td></tr>
+  <tr><td>NBPM_999</td><td>Nanoblock+ Set</td><td>May 2018</td></tr>
   <tr><td>ABC123</td><td>Not a Nanoblock product</td></tr>
 </table>
 """
@@ -170,14 +170,17 @@ def test_parse_products_filters_and_normalizes() -> None:
     assert products[0]["Product Code"] == "NBPM_001"
     assert products[0]["Product Name"] == "Pokémon Center"
     assert products[0]["Variant"] == "RS"
+    assert products[0]["Release Date"] == "2015-03-01"
     assert products[0]["Collected"] == ""
     assert products[0]["Not interested"] == ""
     assert products[1]["Product Code"] == "NBPM_R01"
     assert products[1]["Product Name"] == "Pokémon Series"
     assert products[1]["Variant"] == "DX"
+    assert products[1]["Release Date"] == "2016-08-12"
     assert products[2]["Product Code"] == "NBPM_036"
     assert products[2]["Product Name"] == "20th Anniversary"
     assert products[2]["Variant"] == ""
+    assert products[2]["Release Date"] == ""
 
 
 def test_build_parser_leaves_worksheet_name_unset_until_explicitly_provided(

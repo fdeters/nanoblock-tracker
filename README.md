@@ -65,6 +65,7 @@ The script will:
 
 - read the existing sheet rows
 - compare them by `Product Code`
+- fill missing product data on existing rows
 - append only new products
 - leave existing rows and your manual tracking values untouched
 

@@ -10,6 +10,7 @@ FIELDNAMES = [
     "Product Name",
     "Product Code",
     "Variant",
+    "Release Date",
     "Collected",
     "Not interested",
 ]
