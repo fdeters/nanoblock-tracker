@@ -114,7 +114,7 @@ def append_google_sheet_rows(
     return len(products)
 
 
-def update_google_sheet_release_dates(
+def update_google_sheet_missing_data(
     spreadsheet_id: str,
     products: list[dict[str, Any]],
     existing_rows: list[dict[str, Any]],
@@ -129,16 +129,13 @@ def update_google_sheet_release_dates(
     existing_by_code = {
         row.get("Product Code"): row for row in existing_rows if row.get("Product Code")
     }
-    updates = [
-        (row_numbers[product["Product Code"]], product.get("Release Date", ""))
+    products_by_code = {
+        product.get("Product Code"): product
         for product in products
-        if product.get("Product Code") in existing_by_code
-        and not str(
-            existing_by_code[product["Product Code"]].get("Release Date") or ""
-        ).strip()
-        and str(product.get("Release Date") or "").strip()
-    ]
-    if not updates:
+        if product.get("Product Code")
+    }
+    matching_codes = existing_by_code.keys() & products_by_code.keys()
+    if not matching_codes:
         return 0
 
     if gspread is None or Credentials is None or rowcol_to_a1 is None:
@@ -155,17 +152,37 @@ def update_google_sheet_release_dates(
         raise RuntimeError(_describe_sheets_error(exc, worksheet_name)) from exc
 
     headers = worksheet.row_values(1)
-    if "Release Date" not in headers:
-        raise RuntimeError("Google Sheets sync failed: 'Release Date' column not found")
+    updates = []
+    for field, column_number in (
+        (field, index + 1)
+        for index, field in enumerate(headers)
+        if field != "Product Code"
+    ):
+        for code in matching_codes:
+            current_value = existing_by_code[code].get(field)
+            new_value = products_by_code[code].get(field)
+            if (
+                (current_value is None or not str(current_value).strip())
+                and new_value is not None
+                and str(new_value).strip()
+            ):
+                updates.append(
+                    (
+                        row_numbers[code],
+                        column_number,
+                        new_value,
+                    )
+                )
+    if not updates:
+        return 0
 
-    release_date_column = headers.index("Release Date") + 1
     worksheet.batch_update(
         [
             {
-                "range": cast(Any, rowcol_to_a1)(row_number, release_date_column),
-                "values": [[release_date]],
+                "range": cast(Any, rowcol_to_a1)(row_number, column_number),
+                "values": [[value]],
             }
-            for row_number, release_date in updates
+            for row_number, column_number, value in updates
         ],
         value_input_option=cast(Any, "USER_ENTERED"),
     )

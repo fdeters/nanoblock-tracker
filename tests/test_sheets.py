@@ -6,7 +6,7 @@ import nanoblock_tracker.sheets as sheets_module
 from nanoblock_tracker.sheets import (
     append_google_sheet_rows,
     normalize_sheet_row,
-    update_google_sheet_release_dates,
+    update_google_sheet_missing_data,
 )
 
 
@@ -142,7 +142,9 @@ def test_append_google_sheet_rows_uses_sheet_header_order(monkeypatch) -> None:
     assert appended == [([["NBPM_001", "2015-03-01", "Pikachu", ""]], "USER_ENTERED")]
 
 
-def test_update_google_sheet_release_dates_only_fills_blank_dates(monkeypatch) -> None:
+def test_update_google_sheet_missing_data_fills_any_blank_source_fields(
+    monkeypatch,
+) -> None:
     updates = []
 
     class DummyWorksheet:
@@ -176,19 +178,45 @@ def test_update_google_sheet_release_dates_only_fills_blank_dates(monkeypatch) -
     monkeypatch.setattr(sheets_module, "gspread", DummyGspread)
     monkeypatch.setattr(sheets_module, "Credentials", DummyCredentials)
 
-    count = update_google_sheet_release_dates(
+    count = update_google_sheet_missing_data(
         "sheet-id",
         [
-            {"Product Code": "NBPM_001", "Release Date": "2015-03-01"},
-            {"Product Code": "NBPM_002", "Release Date": "2016-08-12"},
+            {
+                "Product Code": "NBPM_001",
+                "Product Name": "Pikachu",
+                "Variant": "RS",
+                "Release Date": "2015-03-01",
+            },
+            {
+                "Product Code": "NBPM_002",
+                "Product Name": "Eevee",
+                "Release Date": "2016-08-12",
+            },
             {"Product Code": "NBPM_003", "Release Date": ""},
         ],
         [
-            {"Product Code": "NBPM_001", "Release Date": ""},
-            {"Product Code": "NBPM_002", "Release Date": "2016-01-01"},
+            {
+                "Product Code": "NBPM_001",
+                "Product Name": "",
+                "Variant": "DX",
+                "Release Date": "",
+            },
+            {
+                "Product Code": "NBPM_002",
+                "Product Name": "Eevee",
+                "Release Date": "2016-01-01",
+            },
         ],
         credentials_path="{}",
     )
 
-    assert count == 1
-    assert updates == [([{"range": "D2", "values": [["2015-03-01"]]}], "USER_ENTERED")]
+    assert count == 2
+    assert updates == [
+        (
+            [
+                {"range": "A2", "values": [["Pikachu"]]},
+                {"range": "D2", "values": [["2015-03-01"]]},
+            ],
+            "USER_ENTERED",
+        )
+    ]

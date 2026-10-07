@@ -9,7 +9,7 @@ from .scraper import (
 from .sheets import (
     append_google_sheet_rows,
     read_google_sheet_rows,
-    update_google_sheet_release_dates,
+    update_google_sheet_missing_data,
 )
 
 __all__ = [
@@ -23,5 +23,5 @@ __all__ = [
     "parse_products",
     "read_google_sheet_rows",
     "resolve_config_value",
-    "update_google_sheet_release_dates",
+    "update_google_sheet_missing_data",
 ]
